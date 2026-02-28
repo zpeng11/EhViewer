@@ -80,7 +80,7 @@ fun WebtoonViewer(
         ),
         state = lazyListState,
         contentPadding = PaddingValues(horizontal = sidePadding),
-        verticalArrangement = Arrangement.spacedBy(if (withGaps) 15.dp else 0.dp),
+        verticalArrangement = Arrangement.spacedBy(if (withGaps) 3.dp else 0.dp),
     ) {
         items(items, key = { it.index }) { page ->
             PagerItem(
