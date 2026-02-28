@@ -22,7 +22,6 @@ import android.content.ContentResolver.SCHEME_FILE
 import android.content.Intent
 import android.content.pm.verify.domain.DomainVerificationManager
 import android.content.pm.verify.domain.DomainVerificationUserState.DOMAIN_STATE_NONE
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -47,12 +46,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.DrawerDefaults
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -104,16 +99,12 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.compose.rememberNavController
 import com.ehviewer.core.files.isDirectory
-import com.ehviewer.core.files.toOkioPath
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.ui.component.LabeledCheckbox
 import com.ehviewer.core.ui.component.LocalSideSheetState
 import com.ehviewer.core.ui.component.MutableSideSheet
-import com.ehviewer.core.ui.icons.EhIcons
-import com.ehviewer.core.ui.icons.filled.Subscriptions
 import com.ehviewer.core.ui.util.LocalSnackBarFabPadding
 import com.ehviewer.core.ui.util.LocalWindowSizeClass
 import com.ehviewer.core.util.isAtLeastQ
@@ -122,38 +113,20 @@ import com.ehviewer.core.util.isAtLeastS
 import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.EhApplication.Companion.initialized
 import com.hippo.ehviewer.Settings
-import com.hippo.ehviewer.client.data.ListUrlBuilder
-import com.hippo.ehviewer.client.parser.GalleryDetailUrlParser
-import com.hippo.ehviewer.client.parser.GalleryPageUrlParser
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadService
 import com.hippo.ehviewer.download.downloadLocation
 import com.hippo.ehviewer.ui.destinations.DownloadScreenDestination
 import com.hippo.ehviewer.ui.destinations.DownloadsScreenDestination
-import com.hippo.ehviewer.ui.destinations.FavouritesScreenDestination
 import com.hippo.ehviewer.ui.destinations.HistoryScreenDestination
-import com.hippo.ehviewer.ui.destinations.HomePageScreenDestination
-import com.hippo.ehviewer.ui.destinations.ProgressScreenDestination
 import com.hippo.ehviewer.ui.destinations.SettingsScreenDestination
-import com.hippo.ehviewer.ui.destinations.SignInScreenDestination
-import com.hippo.ehviewer.ui.destinations.SubscriptionScreenDestination
-import com.hippo.ehviewer.ui.destinations.ToplistScreenDestination
-import com.hippo.ehviewer.ui.destinations.WhatshotScreenDestination
-import com.hippo.ehviewer.ui.screen.asDst
-import com.hippo.ehviewer.ui.screen.asDstWith
-import com.hippo.ehviewer.ui.screen.navWithUrl
 import com.hippo.ehviewer.ui.settings.showNewVersion
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
-import com.hippo.ehviewer.ui.tools.awaitInputText
 import com.hippo.ehviewer.updater.AppUpdater
 import com.hippo.ehviewer.util.AppConfig
-import com.hippo.ehviewer.util.addTextToClipboard
 import com.hippo.ehviewer.util.calculateFraction
 import com.hippo.ehviewer.util.displayString
-import com.hippo.ehviewer.util.getParcelableExtraCompat
-import com.hippo.ehviewer.util.getUrlFromClipboard
-import com.hippo.ehviewer.util.sha1
 import com.ramcosta.composedestinations.DestinationsNavHost
 import com.ramcosta.composedestinations.spec.Direction
 import com.ramcosta.composedestinations.utils.currentDestinationAsState
@@ -161,23 +134,16 @@ import com.ramcosta.composedestinations.utils.rememberDestinationsNavigator
 import eu.kanade.tachiyomi.util.view.setSecureScreen
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import moe.tarsin.coroutines.runSuspendCatching
-import splitties.systemservices.clipboardManager
 import splitties.systemservices.connectivityManager
 
 private val navItems = arrayOf<Triple<Direction, Int, ImageVector>>(
-    Triple(HomePageScreenDestination, R.string.homepage, Icons.Default.Home),
-    Triple(SubscriptionScreenDestination, R.string.subscription, EhIcons.Default.Subscriptions),
-    Triple(WhatshotScreenDestination, R.string.whats_hot, Icons.Default.Whatshot),
-    Triple(ToplistScreenDestination, R.string.toplist, Icons.Default.FormatListNumbered),
-    Triple(FavouritesScreenDestination, R.string.favourite, Icons.Default.Favorite),
-    Triple(HistoryScreenDestination, R.string.history, Icons.Default.History),
     Triple(DownloadsScreenDestination, R.string.downloads, Icons.Default.Download),
+    Triple(HistoryScreenDestination, R.string.history, Icons.Default.History),
     Triple(SettingsScreenDestination, R.string.settings, Icons.Default.Settings),
 )
 
@@ -286,33 +252,13 @@ class MainActivity : AppCompatActivity() {
                             when (uri.scheme) {
                                 SCHEME_FILE -> navToReader(uri.path!!)
                                 SCHEME_CONTENT -> navToReader(uri.toString())
-                                else -> {
-                                    val url = uri.toString()
-                                    if (!navWithUrl(url)) {
-                                        val new = awaitInputText(initial = url, title = cannotParse)
-                                        addTextToClipboard(new)
-                                    }
-                                }
+                                else -> snackbarState.showSnackbar(cannotParse)
                             }
                         }
-                        Intent.ACTION_SEND -> with(navigator) {
+                        Intent.ACTION_SEND -> {
                             val type = intent.type
-                            if ("text/plain" == type) {
-                                val keyword = intent.getStringExtra(Intent.EXTRA_TEXT)
-                                if (keyword != null && !navWithUrl(keyword)) {
-                                    navigate(ListUrlBuilder(keyword = keyword).asDst())
-                                }
-                            } else if (type != null && type.startsWith("image/")) {
-                                val uri = intent.getParcelableExtraCompat<Uri>(Intent.EXTRA_STREAM)
-                                if (null != uri) {
-                                    val hash = withIOContext { uri.toOkioPath().sha1() }
-                                    navigate(
-                                        ListUrlBuilder(
-                                            mode = ListUrlBuilder.MODE_IMAGE_SEARCH,
-                                            hash = hash,
-                                        ).asDst(),
-                                    )
-                                }
+                            if ("text/plain" == type || (type != null && type.startsWith("image/"))) {
+                                snackbarState.showSnackbar(cannotParse)
                             }
                         }
                         DownloadService.ACTION_START_DOWNLOADSCENE -> {
@@ -349,40 +295,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
-            val snackMessage = stringResource(R.string.clipboard_gallery_url_snack_message)
-            val snackAction = stringResource(R.string.clipboard_gallery_url_snack_action)
-            LifecycleResumeEffect(scope) {
-                val job = scope.launch {
-                    delay(300)
-                    val text = clipboardManager.getUrlFromClipboard(applicationContext)
-                    val hashCode = text?.hashCode() ?: 0
-                    if (text != null && hashCode != 0 && Settings.clipboardTextHashCode != hashCode) {
-                        val result1 = GalleryDetailUrlParser.parse(text, false)
-                        var launch: (() -> Unit)? = null
-                        if (result1 != null) {
-                            launch = { navigator.navigate(result1.gid asDstWith result1.token) }
-                        }
-                        val result2 = GalleryPageUrlParser.parse(text, false)
-                        if (result2 != null) {
-                            launch = { navigator.navigate(ProgressScreenDestination(result2.gid, result2.pToken, result2.page)) }
-                        }
-                        launch?.let {
-                            val ret = snackbarState.showSnackbar(snackMessage, snackAction, true)
-                            if (ret == SnackbarResult.ActionPerformed) it()
-                        }
-                    }
-                    Settings.clipboardTextHashCode = hashCode
-                }
-                onPauseOrDispose { job.cancel() }
-            }
             val currentDestination by navController.currentDestinationAsState()
             val drawerHandle = remember { mutableStateListOf<Long>() }
             var snackbarFabPadding by remember { mutableStateOf(0.dp) }
             val drawerEnabled = drawerHandle.isNotEmpty()
             val density = LocalDensity.current
             val adaptiveInfo = currentWindowAdaptiveInfo()
-            val needSignIn by Settings.needSignIn.collectAsState()
-            val launchPage by Settings.launchPage.collectAsState()
             CompositionLocalProvider(
                 LocalNavDrawerState provides navDrawerState,
                 LocalSideSheetState provides sideSheetState,
@@ -466,14 +384,9 @@ class MainActivity : AppCompatActivity() {
                         ) {
                             SharedTransitionLayout {
                                 CompositionLocalProvider(LocalSharedTransitionScope provides this) {
-                                    val start = when {
-                                        needSignIn -> SignInScreenDestination
-                                        hasNetwork -> navItems[launchPage].first
-                                        else -> DownloadsScreenDestination
-                                    }
                                     DestinationsNavHost(
                                         navGraph = NavGraphs.root,
-                                        start = start,
+                                        start = DownloadsScreenDestination,
                                         defaultTransitions = rememberEhNavAnim(),
                                         navController = navController,
                                     )
