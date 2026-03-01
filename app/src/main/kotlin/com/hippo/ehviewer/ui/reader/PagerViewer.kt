@@ -143,6 +143,7 @@ private fun PageContainer(
 ) {
     @Suppress("NAME_SHADOWING")
     val isRtl by rememberUpdatedState(isRtl)
+    val currentPage by rememberUpdatedState(page)
     val zoomableState = rememberZoomableState(zoomSpec = PagerZoomSpec)
     val status = page.statusObserved
     if (status is PageStatus.Ready && layoutSize != Size.Zero) {
@@ -187,7 +188,7 @@ private fun PageContainer(
             }
         }
     }
-    val onLongClick = { _: Offset -> onSelectPage(page) }
+    val onLongClick = { _: Offset -> onSelectPage(currentPage) }
     val onTap: ZoomableState?.(Offset) -> Unit = { offset ->
         scope.launch {
             with(pagerState) {
@@ -230,7 +231,7 @@ private fun PageContainer(
             page = page,
             pageLoader = pageLoader,
             contentScale = ContentScale.Inside,
-            modifier = Modifier.pointerInput(onTap) {
+            modifier = Modifier.pointerInput(onTap, page.index) {
                 detectTapGestures(onLongPress = onLongClick, onTap = onTap.partially1(null))
             },
             contentModifier = Modifier.zoomable(

@@ -90,7 +90,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-READ-02` 本地重试语义落地：`EhPageLoader` 重试仅触发本地源重读，不触发远端 URL 解析与图片下载  
+- [x] `S1-READ-02` 本地重试语义落地：`EhPageLoader` 重试仅触发本地源重读，不触发远端 URL 解析与图片下载  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/gallery/PageLoader.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/gallery/EhPageLoader.kt`
@@ -287,3 +287,7 @@
 | 2026-03-01 01:36 | Step 1 | S1-READ-01 | ~ | agent | 完成 release 构建并安装至实机（default universal） | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 14:36:24） | 等待用户实机验证菜单与隐藏/显示交互后再标记 x 并提交 |
 | 2026-03-01 01:44 | Step 1 | S1-READ-01 | ~ | agent | 根据用户反馈重构隐藏语义：不再复用 Blocked，占位图移除；改为独立隐藏索引集合并仅渲染可见页，隐藏项从阅读序列中视觉移除；“显示所有隐藏图片”改为任意状态长按菜单均可出现（存在隐藏项时） | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 14:44:31） | 等待用户实机验证通过后标记 x 并提交 |
 | 2026-03-01 01:50 | Step 1 | S1-READ-01 | x | agent | 用户完成实机门禁验证并确认隐藏语义符合预期（隐藏项从阅读序列移除，且“显示所有隐藏图片”在任意长按菜单可见） | 实机验证通过（用户反馈 PASS） | 按要求提交本步后进入 S1-READ-02 |
+| 2026-03-01 01:53 | Step 1 | S1-READ-02 | ~ | agent | 启动“仅本地重试”改造：为阅读重试链路新增 `localOnly` 分支，命中本地源则重读，缺失则直接本地失败，不触发 pToken/页面解析/图片下载网络流程 | 进行中 | 目标是将网络访问防护限定在重试路径，避免影响正常首次读取和预取 |
+| 2026-03-01 01:54 | Step 1 | S1-READ-02 | ~ | agent | 完成“仅本地重试”实现并构建安装实机（default universal） | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 14:54:12） | 等待用户实机验证重试路径不触发远端 fetch 后再标记 x 并提交 |
+| 2026-03-01 02:01 | Step 1 | S1-READ-02 | ~ | agent | 修复隐藏后长按定位错位：Pager/Webtoon 长按回调改为绑定当前可见序列最新页对象，避免持有隐藏前旧引用 | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 15:01:26） | 等待用户复测长按定位与本地重试路径后统一标记 x 并提交 |
+| 2026-03-01 02:17 | Step 1 | S1-READ-02 | x | agent | 用户确认 `S1-READ-02 PASS`：本地缺图场景下首次可能出现历史远端错误文案，点击“重试本地加载”后稳定转为本地读取失败；长按定位错位修复通过 | 实机验证通过（用户反馈 PASS） | 按要求提交本步后进入 S1-READ-03 |

@@ -10,6 +10,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -43,6 +44,7 @@ fun WebtoonViewer(
 ) {
     val scope = rememberCoroutineScope()
     val items = pages
+    val currentItems by rememberUpdatedState(items)
     val zoomableState = rememberZoomableState(zoomSpec = WebtoonZoomSpec)
     val density = LocalDensity.current
     val paddingPercent by Settings.webtoonSidePadding.collectAsState()
@@ -74,7 +76,7 @@ fun WebtoonViewer(
                     info.offset <= ofs.y && info.offset + info.size > ofs.y
                 }
                 if (info != null) {
-                    onSelectPage(items[info.index])
+                    onSelectPage(currentItems[info.index])
                 }
             },
             onDoubleClick = DoubleTapZoom,
