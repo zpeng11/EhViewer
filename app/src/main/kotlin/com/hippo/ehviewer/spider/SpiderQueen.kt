@@ -279,7 +279,13 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
         mWorkerScope.updateRAList(pages, pair)
     }
 
-    fun request(index: Int, force: Boolean, orgImg: Boolean = false, localOnly: Boolean = false) {
+    fun request(
+        index: Int,
+        force: Boolean,
+        orgImg: Boolean = false,
+        localOnly: Boolean = false,
+        remoteFetchAllowed: Boolean = true,
+    ) {
         // Get page state
         val state = getPageState(index)
 
@@ -288,7 +294,7 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
             // Update state to none at once
             updatePageState(index, STATE_NONE)
         }
-        mWorkerScope.launch(index, force, orgImg, localOnly)
+        mWorkerScope.launch(index, force, orgImg, localOnly, remoteFetchAllowed)
     }
 
     fun save(index: Int, file: Path): Boolean {
@@ -488,13 +494,19 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
                 }
                 list.forEach {
                     if (pageStates[it] != STATE_FINISHED && jobs[it]?.isActive != true) {
-                        doLaunchDownloadJob(it, false, localOnly = false)
+                        doLaunchDownloadJob(it, false, localOnly = false, remoteFetchAllowed = true)
                     }
                 }
             }
         }
 
-        private fun doLaunchDownloadJob(index: Int, force: Boolean, orgImg: Boolean = false, localOnly: Boolean = false) {
+        private fun doLaunchDownloadJob(
+            index: Int,
+            force: Boolean,
+            orgImg: Boolean = false,
+            localOnly: Boolean = false,
+            remoteFetchAllowed: Boolean = true,
+        ) {
             val currentJob = jobs[index]
             val skipHath = force && !orgImg && currentJob?.isActive == true
             if (force) currentJob?.cancel(CancellationException(FORCE_RETRY))
@@ -502,7 +514,7 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
                 jobs[index] = launch {
                     runCatching {
                         semaphore.withPermit {
-                            doInJob(index, force, orgImg, skipHath, localOnly)
+                            doInJob(index, force, orgImg, skipHath, localOnly, remoteFetchAllowed)
                         }
                     }.onFailure {
                         if (it is CancellationException) {
@@ -520,12 +532,18 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
             }
         }
 
-        fun launch(index: Int, force: Boolean = false, orgImg: Boolean, localOnly: Boolean = false) {
+        fun launch(
+            index: Int,
+            force: Boolean = false,
+            orgImg: Boolean,
+            localOnly: Boolean = false,
+            remoteFetchAllowed: Boolean = true,
+        ) {
             check(index in 0 until size)
             val state = pageStates[index]
             if (!force && state == STATE_FINISHED) return notifyPageReady(index)
             if (!isDownloadMode) {
-                synchronized(jobs) { doLaunchDownloadJob(index, force, orgImg, localOnly) }
+                synchronized(jobs) { doLaunchDownloadJob(index, force, orgImg, localOnly, remoteFetchAllowed) }
             }
             launch {
                 jobs[index]?.join()
@@ -533,7 +551,14 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
             }
         }
 
-        private suspend fun doInJob(index: Int, force: Boolean, orgImg: Boolean, skipHath: Boolean, localOnly: Boolean) {
+        private suspend fun doInJob(
+            index: Int,
+            force: Boolean,
+            orgImg: Boolean,
+            skipHath: Boolean,
+            localOnly: Boolean,
+            remoteFetchAllowed: Boolean,
+        ) {
             if (localOnly) {
                 if (index in spiderDen) {
                     updatePageState(index, STATE_FINISHED)
@@ -542,6 +567,10 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
                 }
                 return
             }
+            EhEngine.ensureReaderRemoteFetchAllowed(
+                remoteFetchAllowed,
+                stage = "SpiderQueen#doInJob(index=$index)",
+            )
             suspend fun getPToken(index: Int): String? {
                 if (!isReady || index !in 0 until size) return null
                 return spiderInfo.pTokenMap[index]

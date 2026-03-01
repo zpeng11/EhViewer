@@ -12,6 +12,9 @@ import kotlinx.coroutines.coroutineScope
 import moe.tarsin.kt.install
 import okio.Path
 
+@PublishedApi
+internal const val BLOCK_READER_REMOTE_FETCH = true
+
 suspend inline fun <T> useEhPageLoader(
     info: GalleryInfo,
     startPage: Int,
@@ -36,7 +39,13 @@ suspend inline fun <T> useEhPageLoader(
                 override fun prefetchPages(pages: List<Int>, bounds: IntRange) = queen.preloadPages(pages, bounds)
 
                 override fun onRequest(index: Int, force: Boolean, orgImg: Boolean) =
-                    queen.request(index, force, orgImg, localOnly = force && !orgImg)
+                    queen.request(
+                        index = index,
+                        force = force,
+                        orgImg = orgImg,
+                        localOnly = BLOCK_READER_REMOTE_FETCH || (force && !orgImg),
+                        remoteFetchAllowed = !BLOCK_READER_REMOTE_FETCH,
+                    )
             },
         ).apply {
             val listener = object : OnSpiderListener {

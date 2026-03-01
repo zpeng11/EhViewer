@@ -97,13 +97,13 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/spider/SpiderQueen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/spider/SpiderDen.kt`
 
-- [ ] `S1-READ-03` 远端访问防护：为阅读链路增加“禁远端 fetch”保护开关/断言，避免回归时误触发网络分支  
+- [x] `S1-READ-03` 远端访问防护：为阅读链路增加“禁远端 fetch”保护开关/断言，避免回归时误触发网络分支  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/gallery/EhPageLoader.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/spider/SpiderQueen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/client/EhEngine.kt`
 
-- [ ] `S1-READ-04` 本地失败态交互：图像加载失败时仅提供“重试本地加载”和“隐藏”，并补充提示文案  
+- [ ] `S1-READ-04` 本地失败态交互：图像加载失败时提供“重试”和“隐藏”，并补充提示文案  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/reader/PagerItem.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/reader/ReaderScreen.kt`
@@ -291,3 +291,6 @@
 | 2026-03-01 01:54 | Step 1 | S1-READ-02 | ~ | agent | 完成“仅本地重试”实现并构建安装实机（default universal） | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 14:54:12） | 等待用户实机验证重试路径不触发远端 fetch 后再标记 x 并提交 |
 | 2026-03-01 02:01 | Step 1 | S1-READ-02 | ~ | agent | 修复隐藏后长按定位错位：Pager/Webtoon 长按回调改为绑定当前可见序列最新页对象，避免持有隐藏前旧引用 | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 15:01:26） | 等待用户复测长按定位与本地重试路径后统一标记 x 并提交 |
 | 2026-03-01 02:17 | Step 1 | S1-READ-02 | x | agent | 用户确认 `S1-READ-02 PASS`：本地缺图场景下首次可能出现历史远端错误文案，点击“重试本地加载”后稳定转为本地读取失败；长按定位错位修复通过 | 实机验证通过（用户反馈 PASS） | 按要求提交本步后进入 S1-READ-03 |
+| 2026-03-01 02:18 | Step 1 | S1-READ-03 | ~ | agent | 启动阅读链路禁远端防护：计划在 `EhPageLoader` 增加常量开关并默认阻断远端 fetch，同时在 `SpiderQueen`/`EhEngine` 增加断言防回归 | 进行中 | 实现后将验证首次加载也不再走远端分支 |
+| 2026-03-01 02:21 | Step 1 | S1-READ-03 | ~ | agent | 完成“禁远端 fetch”防护实现并安装实机：`EhPageLoader` 默认本地优先阻断远端，`SpiderQueen` 增加 `remoteFetchAllowed` 防回归参数，`EhEngine` 增加断言方法 | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 15:21:36） | 等待用户实机验证首次加载路径不再触发远端 fetch 后再标记 x 并提交 |
+| 2026-03-01 02:24 | Step 1 | S1-READ-03 | x | agent | 用户确认 `S1-READ-03 PASS`：阅读链路远端 fetch 防护生效 | 实机验证通过（用户反馈 PASS） | 按要求提交本步后进入 S1-READ-04 |

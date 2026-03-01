@@ -193,6 +193,12 @@ private suspend inline fun <T> HttpStatement.fetchUsingAsByteBuffer(crossinline 
 }
 
 object EhEngine {
+    fun ensureReaderRemoteFetchAllowed(remoteFetchAllowed: Boolean, stage: String) {
+        check(remoteFetchAllowed) {
+            "Reader remote fetch is disabled, blocked at $stage"
+        }
+    }
+
     suspend fun getOriginalImageUrl(url: String, referer: String?) = noRedirectEhRequest(url, referer).executeSafely { response ->
         response.headers["Location"]?.takeUnless { Url(it).isLogin } ?: throw InsufficientGpException()
     }
