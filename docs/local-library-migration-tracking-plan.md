@@ -161,11 +161,12 @@
 - 列表条目不再依赖 `gid/token` 作为主身份。
 - 本地库统一模型可同时承载“文件夹”和“archive”。
 - Reader 可以从两类来源进入。
+- 扫描同时覆盖两类输入：带下载结果 meta 的历史目录/archive，以及用户在指定 URI 根目录下自行组织的无 meta 纯文件夹相册。
 
 ### 新增接口与类型（必须先落地）
 - [ ] `S2A-API-01` 新增 `LocalLibraryItem`（统一条目实体）
 - [ ] `S2A-API-02` 新增 `LocalLibraryRepository`（扫描、分页、详情、进度、收藏）
-- [ ] `S2A-API-03` 新增 `LocalScanPolicy`（根目录、递归策略、过滤规则）
+- [ ] `S2A-API-03` 新增 `LocalScanPolicy`（根目录、递归策略、过滤规则、来源策略）
 
 建议字段基线：
 - `id`
@@ -178,6 +179,8 @@
 - `progress`
 - `favorite`
 - `sizeBytes`（可选）
+- `hasDownloadMeta`（是否存在下载结果 meta，可选）
+- `scanRootId`（命中的扫描根标识，可选）
 
 ### 任务清单（文件域）
 - [ ] `S2A-DATA-01` 新建本地库域目录与扫描器
@@ -186,6 +189,17 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/repo/**`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/scanner/**`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/paging/**`
+
+- [ ] `S2A-SCAN-01` 扫描器兼容无 meta 纯文件夹相册：在 `LocalScanPolicy` 指定 URI 根目录下发现目录即建档，按图片文件集合推导封面/数量/排序
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/scanner/**`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/repo/**`
+
+- [ ] `S2A-SCAN-02` 建立混合来源去重与优先级策略（同路径同时命中下载 meta 与纯文件夹时，统一 ID 且优先使用 meta 字段）
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/model/**`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/repo/**`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/local/scanner/**`
 
 - [ ] `S2A-READ-01` 新增目录阅读加载器 `FolderPageLoader`
   文件域：
@@ -211,6 +225,8 @@
 - [ ] `S2A-ACC-03` 进度写回并重启恢复正确。
 - [ ] `S2A-ACC-04` 首次全扫与二次增量扫描可区分耗时。
 - [ ] `S2A-ACC-05` `./gradlew :app:assembleDebug` 通过。
+- [ ] `S2A-ACC-06` 在配置的 URI 根目录下，用户自行组织的无 meta 纯文件夹相册可被扫描入库并展示。
+- [ ] `S2A-ACC-07` 同一路径同时存在 meta 与无 meta 信息时去重稳定，且字段优先级符合策略（meta 优先，缺失字段可由扫描补齐）。
 
 ---
 
