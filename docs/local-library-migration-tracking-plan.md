@@ -110,7 +110,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-SET-01` EH 专属设置页面瘦身：下线涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口  
+- [ ] `S1-SET-01` EH 专属设置页面瘦身：下线涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口，但保留缩略图翻译主题等配置
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/EhScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/UConfigScreen.kt`
