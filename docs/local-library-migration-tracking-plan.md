@@ -42,6 +42,8 @@
 - 启动默认进入本地下载库页面。
 - 图库浏览中查看原图不读取远程数据
 - 本地 archive 打开和阅读链路完整可用，但保持翻译和标签等网络功能。
+- 下线所有下载进度管理 UI（开始、暂停、恢复、重试等）与下载任务控制入口。
+- 下载管理页仅保留“本地浏览”相关设置，移除下载配置、恢复下载、冗余清理等下载运维功能。
 
 ### 任务清单（文件域）
 - [x] `S1-NAV-01` 精简主导航，仅保留 Downloads/History/Settings  
@@ -65,6 +67,21 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/login/SignInScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/login/WebViewSignInScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/login/PostLogin.kt`
+
+- [ ] `S1-DL-UI-01` 下线下载进度管理 UI 与下载任务控制（开始/暂停/恢复/重试/批量控制）  
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/DownloadsScreen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/main/DownloadCard.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/ProgressScreen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/download/DownloadManager.kt`
+
+- [ ] `S1-DL-SET-01` 下载管理页设置瘦身为“仅本地浏览”：移除并发/延时/超时/预加载/原图下载等配置，移除恢复下载与冗余清理入口  
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/DownloadScreen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/SettingsScreen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/Settings.kt`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
 - [ ] `S1-SET-01` 下线 EH 专属设置页面中涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口  
   文件域：
@@ -104,6 +121,8 @@
 - [ ] `S1-ACC-03` 飞行模式下主流程可用。
 - [ ] `S1-ACC-04` file/content 打开 archive 可进入 Reader 并翻页。
 - [ ] `S1-ACC-05` `./gradlew :app:assembleDebug` 通过。
+- [ ] `S1-ACC-06` Downloads/Progress 页面不再出现下载控制动作（开始/暂停/恢复/重试/批量启动等）。
+- [ ] `S1-ACC-07` 下载设置页仅保留本地浏览相关项，不再包含下载配置、恢复下载、冗余清理功能。
 
 ---
 
