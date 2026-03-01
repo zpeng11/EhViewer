@@ -84,7 +84,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-READ-01` 阅读器长按菜单动作精简：移除“刷新/查看原图”，替换为“重试本地加载/隐藏”  
+- [ ] `S1-READ-01` 阅读器长按菜单动作精简：移除“刷新/查看原图”，替换为“重试本地加载/隐藏/显示所有隐藏” ，创建隐藏和显示某些图片的 UI 逻辑
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/eu/kanade/tachiyomi/ui/reader/ReaderPageSheet.kt`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
