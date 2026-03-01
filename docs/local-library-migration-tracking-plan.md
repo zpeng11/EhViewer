@@ -40,7 +40,8 @@
 ### 目标与完成定义
 - 应用不再依赖登录、远程列表、远程详情、远程评论、远程搜索。
 - 启动默认进入本地下载库页面。
-- 图库浏览中查看原图不读取远程数据
+- 阅读器长按菜单移除“刷新”和“查看原图”选项，默认假设资源均在本地可用。
+- 走 `EhPageLoader`（本地优先）时，UI 仅提供“重试本地加载”和“隐藏”两个动作，并且完全避免尝试对远端资源执行 fetch。
 - 本地 archive 打开和阅读链路完整可用，但保持翻译和标签等网络功能。
 - 下线所有下载进度管理 UI（开始、暂停、恢复、重试等）与下载任务控制入口。
 - 下载管理页仅保留“本地浏览”相关设置，移除下载配置、恢复下载、冗余清理等下载运维功能。
@@ -83,7 +84,33 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-SET-01` 下线 EH 专属设置页面中涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口  
+- [ ] `S1-READ-01` 阅读器长按菜单动作精简：移除“刷新/查看原图”，替换为“重试本地加载/隐藏”  
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/eu/kanade/tachiyomi/ui/reader/ReaderPageSheet.kt`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
+
+- [ ] `S1-READ-02` 本地重试语义落地：`EhPageLoader` 重试仅触发本地源重读，不触发远端 URL 解析与图片下载  
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/gallery/PageLoader.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/gallery/EhPageLoader.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/spider/SpiderQueen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/spider/SpiderDen.kt`
+
+- [ ] `S1-READ-03` 远端访问防护：为阅读链路增加“禁远端 fetch”保护开关/断言，避免回归时误触发网络分支  
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/gallery/EhPageLoader.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/spider/SpiderQueen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/client/EhEngine.kt`
+
+- [ ] `S1-READ-04` 本地失败态交互：图像加载失败时仅提供“重试本地加载”和“隐藏”，并补充提示文案  
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/reader/PagerItem.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/reader/ReaderScreen.kt`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
+
+- [ ] `S1-SET-01` EH 专属设置页面瘦身：下线涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/EhScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/UConfigScreen.kt`
@@ -123,6 +150,8 @@
 - [ ] `S1-ACC-05` `./gradlew :app:assembleDebug` 通过。
 - [ ] `S1-ACC-06` Downloads/Progress 页面不再出现下载控制动作（开始/暂停/恢复/重试/批量启动等）。
 - [ ] `S1-ACC-07` 下载设置页仅保留本地浏览相关项，不再包含下载配置、恢复下载、冗余清理功能。
+- [ ] `S1-ACC-08` Reader 长按菜单不再出现“刷新/查看原图”；`EhPageLoader` 路径仅出现“重试本地加载/隐藏”。
+- [ ] `S1-ACC-09` `EhPageLoader` 阅读流程在断网/飞行模式下不触发远端资源 fetch（以请求日志或抓包为准）。
 
 ---
 
