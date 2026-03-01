@@ -275,8 +275,18 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
         }
     }
 
-    fun preloadPages(pages: List<Int>, pair: IntRange) {
-        mWorkerScope.updateRAList(pages, pair)
+    fun preloadPages(
+        pages: List<Int>,
+        pair: IntRange,
+        localOnly: Boolean = false,
+        remoteFetchAllowed: Boolean = true,
+    ) {
+        mWorkerScope.updateRAList(
+            list = pages,
+            aliveBound = pair,
+            localOnly = localOnly,
+            remoteFetchAllowed = remoteFetchAllowed,
+        )
     }
 
     fun request(
@@ -484,7 +494,12 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
             isDownloadMode = true
         }
 
-        fun updateRAList(list: List<Int>, aliveBound: IntRange = 0..Int.MAX_VALUE) {
+        fun updateRAList(
+            list: List<Int>,
+            aliveBound: IntRange = 0..Int.MAX_VALUE,
+            localOnly: Boolean = false,
+            remoteFetchAllowed: Boolean = true,
+        ) {
             if (isDownloadMode) return
             synchronized(jobs) {
                 jobs.forEach { (i, job) ->
@@ -494,7 +509,12 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
                 }
                 list.forEach {
                     if (pageStates[it] != STATE_FINISHED && jobs[it]?.isActive != true) {
-                        doLaunchDownloadJob(it, false, localOnly = false, remoteFetchAllowed = true)
+                        doLaunchDownloadJob(
+                            index = it,
+                            force = false,
+                            localOnly = localOnly,
+                            remoteFetchAllowed = remoteFetchAllowed,
+                        )
                     }
                 }
             }

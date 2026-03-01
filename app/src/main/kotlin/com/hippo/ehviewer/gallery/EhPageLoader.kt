@@ -1,5 +1,6 @@
 package com.hippo.ehviewer.gallery
 
+import com.ehviewer.core.i18n.R
 import arrow.autoCloseScope
 import com.ehviewer.core.model.GalleryInfo
 import com.hippo.ehviewer.client.EhUtils
@@ -11,6 +12,7 @@ import com.hippo.ehviewer.util.hasAds
 import kotlinx.coroutines.coroutineScope
 import moe.tarsin.kt.install
 import okio.Path
+import splitties.init.appCtx
 
 @PublishedApi
 internal const val BLOCK_READER_REMOTE_FETCH = true
@@ -26,6 +28,7 @@ suspend inline fun <T> useEhPageLoader(
             { queen, _ -> releaseSpiderQueen(queen, SpiderQueen.MODE_READ) },
         )
         queen.awaitReady()
+        val localReadFailureMessage = appCtx.getString(R.string.error_reading_failed)
         val loader = install(
             object : PageLoader(this, info, startPage, queen.size, info.hasAds) {
                 override val title by lazy { EhUtils.getSuitableTitle(info) }
@@ -36,7 +39,12 @@ suspend inline fun <T> useEhPageLoader(
 
                 override fun openSource(index: Int) = queen.spiderDen.getImageSource(index)
 
-                override fun prefetchPages(pages: List<Int>, bounds: IntRange) = queen.preloadPages(pages, bounds)
+                override fun prefetchPages(pages: List<Int>, bounds: IntRange) = queen.preloadPages(
+                    pages = pages,
+                    pair = bounds,
+                    localOnly = BLOCK_READER_REMOTE_FETCH,
+                    remoteFetchAllowed = !BLOCK_READER_REMOTE_FETCH,
+                )
 
                 override fun onRequest(index: Int, force: Boolean, orgImg: Boolean) =
                     queen.request(
@@ -57,7 +65,12 @@ suspend inline fun <T> useEhPageLoader(
 
                 override fun onPageReady(index: Int) = notifySourceReady(index)
 
-                override fun onPageFailure(index: Int, error: String?, finished: Int, downloaded: Int, total: Int) = notifyPageFailed(index, error)
+                override fun onPageFailure(index: Int, error: String?, finished: Int, downloaded: Int, total: Int) {
+                    notifyPageFailed(
+                        index,
+                        if (BLOCK_READER_REMOTE_FETCH) localReadFailureMessage else error,
+                    )
+                }
             }
             install(
                 { queen.addOnSpiderListener(listener) },
