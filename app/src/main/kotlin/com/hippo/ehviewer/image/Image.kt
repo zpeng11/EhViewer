@@ -122,7 +122,8 @@ class Image private constructor(image: CoilImage, private val src: ImageSource) 
             val image = when (src) {
                 is PathSource -> {
                     if (isAtLeastP && !isAtLeastU) {
-                        src.source.openFileDescriptor("rw").use {
+                        // Reader decode path only needs read access for GIF probing/mmap.
+                        src.source.openFileDescriptor("r").use {
                             val fd = it.fd
                             if (isGif(fd)) {
                                 return bracketCase(
