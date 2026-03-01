@@ -113,7 +113,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-SET-01` EH 专属设置页面瘦身：下线涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口，但保留缩略图翻译主题等配置
+- [x] `S1-SET-01` EH 专属设置页面瘦身：下线涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口，但保留缩略图翻译主题等配置
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/EhScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/UConfigScreen.kt`
@@ -320,3 +320,5 @@
 | 2026-03-01 07:54 | Step 1 | S1-READ-04 | ~ | agent | 回归防护补强失败态文案：阅读链路启用禁远端模式时，`onPageFailure` 统一收敛为 `error_reading_failed`，避免透出“GP 不足”等远端错误文案 | 同版本安装包复测就绪（default universal release） | 待用户复测缺页场景，确认失败卡片文案稳定为“读取失败”且仅保留“重试本地加载/隐藏” |
 | 2026-03-01 08:01 | Step 1 | S1-READ-03 | x | agent | 用户确认回归复测通过：滑动/翻页进入缺页页不再触发远端分支提示 | 实机验证通过（用户反馈 PASS） | 保留阅读链路禁远端断言，防止后续回归 |
 | 2026-03-01 08:01 | Step 1 | S1-READ-04 | x | agent | 用户确认失败态文案符合预期：缺页场景稳定显示“读取失败”，并仅保留“重试本地加载/隐藏” | 实机验证通过（用户反馈 PASS） | 本次回归修复闭环完成 |
+| 2026-03-01 18:52 | Step 1 | S1-SET-01 | ~ | agent | EH 设置页完成本地化瘦身：移除账户/站点/画廊评论/新闻等网络配置与入口；`UConfigScreen`/`MyTagsScreen` 降级为禁用静态页防止误触网；保留缩略图、阅读进度、标签翻译、主题与过滤配置 | 按 `docs/wsl-local-build-install.md` 执行：`prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（serial=192.168.2.93:36057，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-02 07:52:10） | 等待用户实机验证设置页瘦身结果后再标记 x 并提交 |
+| 2026-03-01 18:57 | Step 1 | S1-SET-01 | x | agent | 用户确认 `S1-SET-01 PASS`，EH 设置页瘦身验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-APP-01 |
