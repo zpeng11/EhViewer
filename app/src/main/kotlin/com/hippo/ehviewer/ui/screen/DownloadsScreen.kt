@@ -40,8 +40,6 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NewLabel
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
@@ -106,7 +104,6 @@ import com.ehviewer.core.ui.util.takeAndClear
 import com.ehviewer.core.ui.util.thenIf
 import com.ehviewer.core.util.launch
 import com.ehviewer.core.util.launchIO
-import com.ehviewer.core.util.mapToLongArray
 import com.ehviewer.core.util.onEachLatest
 import com.ehviewer.core.util.withNonCancellableContext
 import com.ehviewer.core.util.withUIContext
@@ -116,7 +113,6 @@ import com.hippo.ehviewer.asMutableState
 import com.hippo.ehviewer.client.EhTagDatabase
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadManager
-import com.hippo.ehviewer.download.DownloadService
 import com.hippo.ehviewer.download.DownloadsFilterMode
 import com.hippo.ehviewer.download.SortMode
 import com.hippo.ehviewer.ui.DrawerHandle
@@ -515,20 +511,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text(text = stringResource(id = R.string.download_start_all)) },
-                    onClick = {
-                        expanded = false
-                        DownloadService.startService(DownloadService.ACTION_START_ALL)
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(text = stringResource(id = R.string.download_stop_all)) },
-                    onClick = {
-                        expanded = false
-                        launchIO { DownloadManager.stopAllDownload() }
-                    },
-                )
-                DropdownMenuItem(
                     text = { Text(text = stringResource(id = R.string.download_reset_reading_progress)) },
                     onClick = {
                         expanded = false
@@ -543,14 +525,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                                 DownloadManager.resetAllReadingProgress()
                             }
                         }
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(text = stringResource(id = R.string.download_start_all_reversed)) },
-                    onClick = {
-                        expanded = false
-                        val gidList = list.filter { it.state != DownloadInfo.STATE_FINISH }.asReversed().mapToLongArray(DownloadInfo::gid)
-                        DownloadService.startRangeDownload(gidList)
                     },
                 )
             }
@@ -632,10 +606,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                                 onLongClick = {
                                     checkedInfoMap[info.gid] = info
                                 },
-                                onStart = {
-                                    DownloadService.startDownload(info.galleryInfo)
-                                },
-                                onStop = { launchIO { DownloadManager.stopDownload(info.gid) } },
                                 info = info,
                                 selectMode = selectMode,
                                 showProgress = showProgress,
@@ -727,14 +697,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
             onClick(Icons.Default.DoneAll, autoClose = false) {
                 val info = list.associateBy { it.gid }
                 checkedInfoMap.putAll(info)
-            }
-            onClick(Icons.Default.PlayArrow) {
-                val gidList = checkedInfoMap.takeAndClear().mapToLongArray(DownloadInfo::gid)
-                DownloadService.startRangeDownload(gidList)
-            }
-            onClick(Icons.Default.Pause) {
-                val gidList = checkedInfoMap.takeAndClear().mapToLongArray(DownloadInfo::gid)
-                DownloadManager.stopRangeDownload(gidList)
             }
             onClick(Icons.Default.Delete) {
                 val infoList = checkedInfoMap.takeAndClear()

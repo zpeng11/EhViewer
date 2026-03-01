@@ -68,7 +68,7 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/login/WebViewSignInScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/login/PostLogin.kt`
 
-- [ ] `S1-DL-UI-01` 下线下载进度管理 UI 与下载任务控制（开始/暂停/恢复/重试/批量控制）  
+- [x] `S1-DL-UI-01` 下线下载进度管理 UI 与下载任务控制（开始/暂停/恢复/重试/批量控制）  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/DownloadsScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/main/DownloadCard.kt`
@@ -249,3 +249,6 @@
 | 2026-02-28 17:54 | Step 1 | S1-NAV-02 | x | agent | 用户完成实机门禁验证 | 站点 URL 与分享入口下线校验通过（用户反馈 PASS） | 进入 S1-UI-01 |
 | 2026-02-28 17:57 | Step 1 | S1-UI-01 | ~ | agent | MainNav 引用改为本地 Reader/Downloads 路径，SearchBar 移除 ImageSearch 入口，MainActivity 保持 file/content 本地入口 | `prepareLibraryDefinitions*Release` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063） | 等待实机反馈后决定是否标记 x |
 | 2026-02-28 18:04 | Step 1 | S1-UI-01 | x | agent | 用户完成实机门禁验证 | 登录/远程入口下线与本地阅读入口校验通过（用户反馈 PASS） | 按要求在每个 PASS 后执行 commit |
+| 2026-02-28 23:06 | Step 1 | S1-DL-UI-01 | ~ | agent | Downloads 页面移除单条开始/暂停与批量开始/暂停/全量控制入口，仅保留本地浏览相关动作（删除/移动/重置阅读进度） | `prepareLibraryDefinitions*Release` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 12:06:39） | `ProgressScreen`/`DownloadManager` 本步未改动，避免跨任务 side effect，等待实机反馈后决定是否标记 x |
+| 2026-02-28 23:10 | Step 1 | S1-DL-UI-01 | ~ | agent | DownloadCard 进一步移除实时下载速度/进度条，仅保留本地阅读信息；Downloads 控制入口保持下线 | `prepareLibraryDefinitions*Release` 成功；`assembleRelease` 在 `marshmallow/armeabi-v7a` 因 `AHardwareBuffer_*` 链接失败；`assembleDefaultRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 12:09:59） | 为避免跨任务引入 native side effect，本步未改动 `DownloadManager`/native 代码；等待实机反馈后决定是否标记 x |
+| 2026-02-28 23:13 | Step 1 | S1-DL-UI-01 | x | agent | 用户完成实机门禁验证 | 下载控制入口下线校验通过（用户反馈 PASS） | 进入 S1-DL-SET-01 |
