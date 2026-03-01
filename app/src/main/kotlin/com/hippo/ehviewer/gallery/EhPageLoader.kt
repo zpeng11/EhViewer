@@ -30,14 +30,21 @@ suspend inline fun <T> useEhPageLoader(
         queen.awaitReady()
         val localReadFailureMessage = appCtx.getString(R.string.error_reading_failed)
         val loader = install(
-            object : PageLoader(this, info, startPage, queen.size, info.hasAds) {
+            object : PageLoader(
+                this,
+                info,
+                startPage,
+                queen.size,
+                info.hasAds,
+                onClose = { queen.spiderDen.clearReaderIsolationCache() },
+            ) {
                 override val title by lazy { EhUtils.getSuitableTitle(info) }
 
                 override fun getImageExtension(index: Int) = queen.getExtension(index)
 
                 override fun save(index: Int, file: Path) = queen.save(index, file)
 
-                override fun openSource(index: Int) = queen.spiderDen.getImageSource(index)
+                override fun openSource(index: Int) = queen.spiderDen.getImageSourceForReader(index)
 
                 override fun prefetchPages(pages: List<Int>, bounds: IntRange) = queen.preloadPages(
                     pages = pages,

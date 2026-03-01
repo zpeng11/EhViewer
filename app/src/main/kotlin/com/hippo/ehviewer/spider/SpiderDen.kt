@@ -24,6 +24,8 @@ import com.ehviewer.core.database.model.DownloadArtist
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.exists
 import com.ehviewer.core.files.find
+import com.ehviewer.core.files.isAnimatedForReader
+import com.ehviewer.core.files.isCifsDocumentPath
 import com.ehviewer.core.files.isDirectory
 import com.ehviewer.core.files.list
 import com.ehviewer.core.files.mkdirs
@@ -47,15 +49,19 @@ import com.hippo.ehviewer.download.downloadLocation
 import com.hippo.ehviewer.download.tempDownloadDir
 import com.hippo.ehviewer.image.PathSource
 import com.hippo.ehviewer.jni.archiveFdBatch
+import com.hippo.ehviewer.util.AppConfig
 import com.hippo.ehviewer.util.FileUtils
 import com.hippo.ehviewer.util.copyTo
 import com.hippo.ehviewer.util.sha1
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.request
+import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
+import kotlinx.coroutines.CancellationException
 import okio.Path
 
 class SpiderDen(val info: GalleryInfo) {
@@ -68,6 +74,11 @@ class SpiderDen(val info: GalleryInfo) {
     private val archiveName = "$gid.cbz"
 
     private val lock = ReentrantReadWriteLock()
+    private val readerSessionId = UUID.randomUUID().toString()
+    private val readerIsolationLock = Any()
+    private val readerIsolationMap = mutableMapOf<Int, ReaderIsolatedEntry>()
+    @Volatile
+    private var readerIsolationDir: Path? = null
 
     // Search in both directories to maintain compatibility
     private val fileCache by lazy {
@@ -267,6 +278,76 @@ class SpiderDen(val info: GalleryInfo) {
         }
     }
 
+    fun getImageSourceForReader(index: Int): PathSource {
+        getCachedReaderIsolation(index)?.let(::createReaderIsolatedSource)?.let { return it }
+        val source = getImageSource(index)
+        if (!source.source.isCifsDocumentPath() || !source.source.isAnimatedForReader(source.type)) {
+            return source
+        }
+        val isolated = copyForReaderIsolationWithRetry(index, source)
+        return createReaderIsolatedSource(isolated)
+    }
+
+    fun clearReaderIsolationCache() {
+        val dir = synchronized(readerIsolationLock) {
+            readerIsolationMap.clear()
+            readerIsolationDir.also { readerIsolationDir = null }
+        }
+        dir?.runCatching { delete() }?.onFailure(::logcat)
+    }
+
+    private fun getOrCreateReaderIsolationDir() = synchronized(readerIsolationLock) {
+        readerIsolationDir?.takeIf(Path::exists) ?: (AppConfig.tempDir / READER_ISOLATION_DIR / "$gid-$readerSessionId")
+            .apply { mkdirs() }
+            .also { readerIsolationDir = it }
+    }
+
+    private fun getCachedReaderIsolation(index: Int) = synchronized(readerIsolationLock) {
+        val entry = readerIsolationMap[index] ?: return@synchronized null
+        if (entry.path.exists()) {
+            entry
+        } else {
+            readerIsolationMap.remove(index)
+            null
+        }
+    }
+
+    private fun copyForReaderIsolationWithRetry(index: Int, source: PathSource): ReaderIsolatedEntry = source.use { pathSource ->
+        val type = pathSource.type.lowercase()
+        getCachedReaderIsolation(index)?.let { return@use it }
+        val dir = getOrCreateReaderIsolationDir()
+        val target = dir / perFilename(index, type)
+        var lastError: Throwable? = null
+        repeat(READER_COPY_MAX_ATTEMPTS) { attempt ->
+            val tempTarget = dir / "${target.name}.part"
+            runCatching {
+                if (tempTarget.exists()) tempTarget.delete()
+                pathSource.source sendTo tempTarget
+                if (target.exists()) target.delete()
+                tempTarget moveTo target
+                val entry = ReaderIsolatedEntry(target, type)
+                synchronized(readerIsolationLock) {
+                    readerIsolationMap[index] = entry
+                }
+                return@use entry
+            }.onFailure { err ->
+                lastError = err
+                runCatching { tempTarget.delete() }
+                if (err is CancellationException) throw err
+                if (attempt + 1 < READER_COPY_MAX_ATTEMPTS) {
+                    Thread.sleep(READER_COPY_RETRY_DELAY_MS)
+                }
+            }
+        }
+        throw IOException("Failed to isolate CIFS animated source for page $index after $READER_COPY_MAX_ATTEMPTS attempts", lastError)
+    }
+
+    private fun createReaderIsolatedSource(entry: ReaderIsolatedEntry) = object : PathSource {
+        override val source = entry.path
+        override val type = entry.type
+        override fun close() = Unit
+    }
+
     suspend fun archive() = saveAsCbz && downloadDir?.run {
         resolve(archiveName).let { file ->
             runCatching {
@@ -343,8 +424,12 @@ class SpiderDen(val info: GalleryInfo) {
 }
 
 private const val TEMP_SUFFIX = ".tmp"
+private const val READER_ISOLATION_DIR = "reader_cifs_isolation"
+private const val READER_COPY_MAX_ATTEMPTS = 2
+private const val READER_COPY_RETRY_DELAY_MS = 100L
 private val FileNameRegex = Regex("^\\d{8}\\.\\w{3,4}")
 private val FileHashRegex = Regex("/h/([0-9a-f]{40})")
+private data class ReaderIsolatedEntry(val path: Path, val type: String)
 
 fun perFilename(index: Int, extension: String = ""): String = "%08d.%s".format(index + 1, extension)
 
