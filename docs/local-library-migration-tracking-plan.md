@@ -40,7 +40,8 @@
 ### 目标与完成定义
 - 应用不再依赖登录、远程列表、远程详情、远程评论、远程搜索。
 - 启动默认进入本地下载库页面。
-- 本地 archive 打开和阅读链路完整可用。
+- 图库浏览中查看原图不读取远程数据
+- 本地 archive 打开和阅读链路完整可用，但保持翻译和标签等网络功能。
 
 ### 任务清单（文件域）
 - [x] `S1-NAV-01` 精简主导航，仅保留 Downloads/History/Settings  
@@ -65,13 +66,13 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/login/WebViewSignInScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/login/PostLogin.kt`
 
-- [ ] `S1-SET-01` 下线 EH 专属设置页面并清理入口  
+- [ ] `S1-SET-01` 下线 EH 专属设置页面中涉及网络的连接，账户和站点配置画廊和评论配置等，并清理入口  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/EhScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/UConfigScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/MyTagsScreen.kt`
 
-- [ ] `S1-APP-01` 移除应用启动中的网络任务（更新检查、dailycheck、tag 拉取）  
+- [ ] `S1-APP-01` 移除应用启动中的软件网络任务（更新检查、dailycheck），但保留日常使用的如tag拉取翻译等网络功能  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhApplication.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/SettingsCollector.kt`
