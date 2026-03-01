@@ -57,6 +57,7 @@ fun PagerViewer(
     pagerState: PagerState,
     isRtl: Boolean,
     isVertical: Boolean,
+    pages: List<Page>,
     pageLoader: PageLoader,
     navigator: () -> NavigationRegions,
     onSelectPage: (Page) -> Unit,
@@ -64,7 +65,7 @@ fun PagerViewer(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
-    val items = pageLoader.pages
+    val items = pages
     val scaleType by Settings.imageScaleType.collectAsState()
     val landscapeZoom by Settings.landscapeZoom.collectAsState()
     val zoomStart by Settings.zoomStart.collectAsState()
@@ -79,7 +80,7 @@ fun PagerViewer(
             state = pagerState,
             modifier = modifier,
             beyondViewportPageCount = 1,
-            key = { it },
+            key = { items[it].index },
         ) { index ->
             val page = items[index]
             PageContainer(
@@ -104,7 +105,7 @@ fun PagerViewer(
             modifier = modifier,
             beyondViewportPageCount = 1,
             reverseLayout = isRtl xor isRtlLayout,
-            key = { it },
+            key = { items[it].index },
         ) { index ->
             val page = items[index]
             PageContainer(

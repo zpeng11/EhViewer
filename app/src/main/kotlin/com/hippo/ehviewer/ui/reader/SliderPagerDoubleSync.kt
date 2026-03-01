@@ -23,12 +23,30 @@ class SliderPagerDoubleSync(
     private val pageLoader: PageLoader,
 ) {
     private var sliderFollowPager by mutableStateOf(true)
+    private var totalPages by mutableIntStateOf(pageLoader.size.coerceAtLeast(1))
+    private var sourceIndexOfDisplay: (Int) -> Int by mutableStateOf({ it })
+    private var displayIndexOfSource: (Int) -> Int by mutableStateOf({ it })
     var sliderValue by mutableIntStateOf(pageLoader.startPage + 1)
         private set
 
+    fun updateMapping(
+        totalPages: Int,
+        sourceIndexOfDisplay: (Int) -> Int,
+        displayIndexOfSource: (Int) -> Int,
+    ) {
+        this.totalPages = totalPages.coerceAtLeast(1)
+        this.sourceIndexOfDisplay = sourceIndexOfDisplay
+        this.displayIndexOfSource = displayIndexOfSource
+        sliderValue = if (sliderFollowPager) {
+            (this.displayIndexOfSource(pageLoader.startPage) + 1).coerceIn(1, this.totalPages)
+        } else {
+            sliderValue.coerceIn(1, this.totalPages)
+        }
+    }
+
     fun sliderScrollTo(index: Int) {
         sliderFollowPager = false
-        sliderValue = index.coerceIn(1, pageLoader.size)
+        sliderValue = index.coerceIn(1, totalPages)
     }
 
     fun reset() {
@@ -62,7 +80,7 @@ class SliderPagerDoubleSync(
             LaunchedEffect(currentIndexFlow) {
                 currentIndexFlow.drop(1).collect { index ->
                     sliderValue = index + 1
-                    pageLoader.startPage = index
+                    pageLoader.startPage = sourceIndexOfDisplay(index)
                     onPageSelected()
                 }
             }
@@ -74,7 +92,7 @@ class SliderPagerDoubleSync(
                     } else {
                         pagerState.animateScrollToPage(index)
                     }
-                    pageLoader.startPage = index
+                    pageLoader.startPage = sourceIndexOfDisplay(index)
                 }
             }
         }

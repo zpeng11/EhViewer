@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,13 +32,13 @@ import moe.tarsin.kt.andThen
 
 @Composable
 fun ReaderPageSheetMeta(
-    retry: () -> Unit,
-    retryOrigin: () -> Unit,
+    retryLocal: () -> Unit,
+    hide: (() -> Unit)?,
+    showAllHidden: (() -> Unit)?,
     share: () -> Unit,
     copy: () -> Unit,
     save: () -> Unit,
     saveTo: () -> Unit,
-    showAds: (() -> Unit)?,
     dismiss: () -> Unit,
 ) {
     @Composable
@@ -50,9 +51,9 @@ fun ReaderPageSheetMeta(
         Text(text = stringResource(id = text))
     }
     Column(modifier = Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding()) {
-        showAds?.let { Item(icon = Icons.Default.Visibility, text = R.string.show_blocked_image, onClick = it) }
-        Item(icon = Icons.Default.Refresh, text = R.string.refresh, onClick = retry)
-        Item(icon = Icons.Default.Visibility, text = R.string.view_original, onClick = retryOrigin)
+        Item(icon = Icons.Default.Refresh, text = R.string.reader_retry_local_load, onClick = retryLocal)
+        hide?.let { Item(icon = Icons.Default.VisibilityOff, text = R.string.reader_hide_image, onClick = it) }
+        showAllHidden?.let { Item(icon = Icons.Default.Visibility, text = R.string.reader_show_all_hidden_images, onClick = it) }
         Item(icon = Icons.Default.Share, text = R.string.action_share, onClick = share)
         Item(icon = Icons.Default.FileCopy, text = R.string.action_copy, onClick = copy)
         Item(icon = Icons.Default.Save, text = R.string.action_save, onClick = save)

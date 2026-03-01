@@ -34,6 +34,7 @@ import me.saket.telephoto.zoomable.zoomable
 fun WebtoonViewer(
     lazyListState: LazyListState,
     withGaps: Boolean,
+    pages: List<Page>,
     pageLoader: PageLoader,
     navigator: () -> NavigationRegions,
     onSelectPage: (Page) -> Unit,
@@ -41,7 +42,7 @@ fun WebtoonViewer(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
-    val items = pageLoader.pages
+    val items = pages
     val zoomableState = rememberZoomableState(zoomSpec = WebtoonZoomSpec)
     val density = LocalDensity.current
     val paddingPercent by Settings.webtoonSidePadding.collectAsState()

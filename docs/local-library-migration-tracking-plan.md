@@ -84,7 +84,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-READ-01` 阅读器长按菜单动作精简：移除“刷新/查看原图”，替换为“重试本地加载/隐藏/显示所有隐藏” ，创建隐藏和显示某些图片的 UI 逻辑
+- [x] `S1-READ-01` 阅读器长按菜单动作精简：移除“刷新/查看原图”，替换为“重试本地加载/隐藏/显示所有隐藏” ，创建隐藏和显示某些图片的 UI 逻辑
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/eu/kanade/tachiyomi/ui/reader/ReaderPageSheet.kt`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
@@ -283,3 +283,7 @@
 | 2026-02-28 23:13 | Step 1 | S1-DL-UI-01 | x | agent | 用户完成实机门禁验证 | 下载控制入口下线校验通过（用户反馈 PASS） | 进入 S1-DL-SET-01 |
 | 2026-02-28 23:19 | Step 1 | S1-DL-SET-01 | ~ | agent | Download 设置页瘦身为本地浏览：移除并发/延时/超时/预载/原图下载、元数据重载、恢复下载、冗余清理入口；仅保留下载路径与媒体扫描 | `prepareLibraryDefinitions*Release` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 12:19:09） | `Settings.kt` 保留下载参数键作为兼容配置（隐藏 UI，不改运行时），避免影响仍存留的阅读/蜘蛛逻辑 |
 | 2026-02-28 23:26 | Step 1 | S1-DL-SET-01 | x | agent | 用户完成实机门禁验证 | 下载设置页瘦身校验通过（用户反馈 PASS） | 按要求本步提交后暂停，不继续下一项 |
+| 2026-03-01 01:33 | Step 1 | S1-READ-01 | ~ | agent | 阅读器长按菜单移除“刷新/查看原图”，新增“重试本地加载/隐藏/显示所有隐藏”；基于 `PageStatus.Blocked` 增加手动隐藏/批量显示 UI 逻辑 | 本地代码改造完成，待 `prepareLibraryDefinitions*Release`、`assembleRelease` 与 ADB 安装验证 | 复用现有 Blocked 状态以降低改动面；后续 `S1-READ-04` 再细化失败态提示 |
+| 2026-03-01 01:36 | Step 1 | S1-READ-01 | ~ | agent | 完成 release 构建并安装至实机（default universal） | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 14:36:24） | 等待用户实机验证菜单与隐藏/显示交互后再标记 x 并提交 |
+| 2026-03-01 01:44 | Step 1 | S1-READ-01 | ~ | agent | 根据用户反馈重构隐藏语义：不再复用 Blocked，占位图移除；改为独立隐藏索引集合并仅渲染可见页，隐藏项从阅读序列中视觉移除；“显示所有隐藏图片”改为任意状态长按菜单均可出现（存在隐藏项时） | `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 14:44:31） | 等待用户实机验证通过后标记 x 并提交 |
+| 2026-03-01 01:50 | Step 1 | S1-READ-01 | x | agent | 用户完成实机门禁验证并确认隐藏语义符合预期（隐藏项从阅读序列移除，且“显示所有隐藏图片”在任意长按菜单可见） | 实机验证通过（用户反馈 PASS） | 按要求提交本步后进入 S1-READ-02 |

@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -70,9 +71,6 @@ import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.download.archiveFile
 import com.hippo.ehviewer.gallery.Page
 import com.hippo.ehviewer.gallery.PageLoader
-import com.hippo.ehviewer.gallery.PageStatus
-import com.hippo.ehviewer.gallery.status
-import com.hippo.ehviewer.gallery.unblock
 import com.hippo.ehviewer.gallery.useArchivePageLoader
 import com.hippo.ehviewer.gallery.useEhPageLoader
 import com.hippo.ehviewer.ui.MainActivity
@@ -214,11 +212,37 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
             uiController.showTransientSystemBarsBySwipe = false
         }
     }
-    val lazyListState = rememberLazyListState(LazyLayoutCacheWindow(SCROLL_FRACTION, SCROLL_FRACTION), pageLoader.startPage)
-    val pagerState = rememberPagerState(pageLoader.startPage) { pageLoader.size }
+    val hiddenPageIndexes = remember { mutableStateListOf<Int>() }
+    val visiblePages = pageLoader.pages.filterNot { hiddenPageIndexes.contains(it.index) }
+    val displayPages = if (visiblePages.isEmpty()) pageLoader.pages else visiblePages
+    val initialPage = pageLoader.startPage.coerceIn(0, pageLoader.size - 1)
+    val lazyListState = rememberLazyListState(LazyLayoutCacheWindow(SCROLL_FRACTION, SCROLL_FRACTION), initialPage)
+    val pagerState = rememberPagerState(initialPage) { displayPages.size }
     val syncState = rememberSliderPagerDoubleSyncState(lazyListState, pagerState, pageLoader)
+    syncState.updateMapping(
+        totalPages = displayPages.size,
+        sourceIndexOfDisplay = { index -> displayPages[index].index },
+        displayIndexOfSource = { sourceIndex ->
+            displayPages.indexOfFirst { it.index >= sourceIndex }
+                .takeIf { it >= 0 }
+                ?: displayPages.lastIndex
+        },
+    )
     var appbarVisible by remember { mutableStateOf(false) }
     val isWebtoon by rememberUpdatedState(ReadingModeType.isWebtoon(readingMode))
+    LaunchedEffect(displayPages.size, isWebtoon) {
+        if (displayPages.isEmpty()) return@LaunchedEffect
+        val lastIndex = displayPages.lastIndex
+        if (isWebtoon) {
+            if (lazyListState.firstVisibleItemIndex > lastIndex) {
+                lazyListState.scrollToItem(lastIndex)
+            }
+        } else {
+            if (pagerState.currentPage > lastIndex) {
+                pagerState.scrollToPage(lastIndex)
+            }
+        }
+    }
     val focusRequester = remember { FocusRequester() }
     Box(
         Modifier.keyEventHandler(
@@ -248,7 +272,8 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
         val onSelectPage = { page: Page ->
             if (Settings.readerLongTapAction.value) {
                 launch {
-                    val blocked = page.status is PageStatus.Blocked
+                    val canHidePage = displayPages.size > 1
+                    val hasHiddenPages = hiddenPageIndexes.isNotEmpty()
                     dialog { cont ->
                         fun dispose() = cont.resume(Unit)
                         val state = rememberModalBottomSheetState()
@@ -259,13 +284,19 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
                             contentWindowInsets = { WindowInsets() },
                         ) {
                             ReaderPageSheetMeta(
-                                retry = { pageLoader.retryPage(page.index) },
-                                retryOrigin = { pageLoader.retryPage(page.index, true) },
+                                retryLocal = { pageLoader.retryPage(page.index) },
+                                hide = {
+                                    if (page.index !in hiddenPageIndexes && displayPages.size > 1) {
+                                        hiddenPageIndexes.add(page.index)
+                                    }
+                                }.takeIf { canHidePage },
+                                showAllHidden = {
+                                    hiddenPageIndexes.clear()
+                                }.takeIf { hasHiddenPages },
                                 share = { launchIO { with(pageLoader) { shareImage(page, info) } } },
                                 copy = { launchIO { with(pageLoader) { copy(page) } } },
                                 save = { launchIO { with(pageLoader) { save(page) } } },
                                 saveTo = { launchIO { with(pageLoader) { saveTo(page) } } },
-                                showAds = { page.unblock() }.takeIf { blocked },
                                 dismiss = { launch { state.hide().also { dispose() } } },
                             )
                         }
@@ -287,6 +318,7 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
                 type = readingMode,
                 pagerState = pagerState,
                 lazyListState = lazyListState,
+                pages = displayPages,
                 pageLoader = pageLoader,
                 showNavigationOverlay = showNavigationOverlay,
                 onNavigationModeChange = { showNavigationOverlay = true },
@@ -333,7 +365,7 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
             CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodySmall) {
                 PageIndicatorText(
                     currentPage = syncState.sliderValue,
-                    totalPages = pageLoader.size,
+                    totalPages = displayPages.size,
                     modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
                 )
             }
@@ -344,7 +376,7 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
             isRtl = readingMode == ReadingModeType.RIGHT_TO_LEFT,
             showSeekBar = showSeekbar,
             currentPage = syncState.sliderValue,
-            totalPages = pageLoader.size,
+            totalPages = displayPages.size,
             onSliderValueChange = syncState::sliderScrollTo,
             onClickSettings = {
                 launch {

@@ -37,6 +37,7 @@ fun GalleryPager(
     type: ReadingModeType,
     pagerState: PagerState,
     lazyListState: LazyListState,
+    pages: List<Page>,
     pageLoader: PageLoader,
     showNavigationOverlay: Boolean,
     onNavigationModeChange: () -> Unit,
@@ -77,6 +78,7 @@ fun GalleryPager(
             pagerState = pagerState,
             isRtl = type == RIGHT_TO_LEFT,
             isVertical = type == VERTICAL,
+            pages = pages,
             pageLoader = pageLoader,
             navigator = { navigator },
             onSelectPage = onSelectPage,
@@ -95,6 +97,7 @@ fun GalleryPager(
         WebtoonViewer(
             lazyListState = lazyListState,
             withGaps = type == CONTINUOUS_VERTICAL,
+            pages = pages,
             pageLoader = pageLoader,
             navigator = { navigator },
             onSelectPage = onSelectPage,
