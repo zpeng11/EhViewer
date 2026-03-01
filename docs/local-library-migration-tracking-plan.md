@@ -75,7 +75,7 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/ProgressScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/download/DownloadManager.kt`
 
-- [ ] `S1-DL-SET-01` 下载管理页设置瘦身为“仅本地浏览”：移除并发/延时/超时/预加载/原图下载等配置，移除恢复下载与冗余清理入口  
+- [x] `S1-DL-SET-01` 下载管理页设置瘦身为“仅本地浏览”：移除并发/延时/超时/预加载/原图下载等配置，移除恢复下载与冗余清理入口  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/DownloadScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/SettingsScreen.kt`
@@ -252,3 +252,5 @@
 | 2026-02-28 23:06 | Step 1 | S1-DL-UI-01 | ~ | agent | Downloads 页面移除单条开始/暂停与批量开始/暂停/全量控制入口，仅保留本地浏览相关动作（删除/移动/重置阅读进度） | `prepareLibraryDefinitions*Release` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 12:06:39） | `ProgressScreen`/`DownloadManager` 本步未改动，避免跨任务 side effect，等待实机反馈后决定是否标记 x |
 | 2026-02-28 23:10 | Step 1 | S1-DL-UI-01 | ~ | agent | DownloadCard 进一步移除实时下载速度/进度条，仅保留本地阅读信息；Downloads 控制入口保持下线 | `prepareLibraryDefinitions*Release` 成功；`assembleRelease` 在 `marshmallow/armeabi-v7a` 因 `AHardwareBuffer_*` 链接失败；`assembleDefaultRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 12:09:59） | 为避免跨任务引入 native side effect，本步未改动 `DownloadManager`/native 代码；等待实机反馈后决定是否标记 x |
 | 2026-02-28 23:13 | Step 1 | S1-DL-UI-01 | x | agent | 用户完成实机门禁验证 | 下载控制入口下线校验通过（用户反馈 PASS） | 进入 S1-DL-SET-01 |
+| 2026-02-28 23:19 | Step 1 | S1-DL-SET-01 | ~ | agent | Download 设置页瘦身为本地浏览：移除并发/延时/超时/预载/原图下载、元数据重载、恢复下载、冗余清理入口；仅保留下载路径与媒体扫描 | `prepareLibraryDefinitions*Release` 成功，`assembleRelease` 成功，ADB 安装成功（versionName=1.14.6, versionCode=180063, lastUpdateTime=2026-03-01 12:19:09） | `Settings.kt` 保留下载参数键作为兼容配置（隐藏 UI，不改运行时），避免影响仍存留的阅读/蜘蛛逻辑 |
+| 2026-02-28 23:26 | Step 1 | S1-DL-SET-01 | x | agent | 用户完成实机门禁验证 | 下载设置页瘦身校验通过（用户反馈 PASS） | 按要求本步提交后暂停，不继续下一项 |

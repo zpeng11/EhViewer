@@ -93,6 +93,7 @@ object Settings : DataStorePreferences(null) {
 
     // Download
     val mediaScan = boolPref("media_scan", false).observed(::updateWhenKeepMediaStatusChanges)
+    // Legacy download-task knobs are kept for runtime compatibility, but hidden from Download settings UI.
     val multiThreadDownload = intPref("download_thread_2", 3)
     val downloadDelay = intPref("download_delay_3", 1000)
     val timeoutSpeed = intPref("timeout_speed_level", 6)
