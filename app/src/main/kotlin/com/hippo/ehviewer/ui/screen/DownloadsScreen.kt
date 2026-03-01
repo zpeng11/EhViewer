@@ -186,7 +186,8 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         },
     )
     val hint = stringResource(R.string.search_bar_hint, title)
-    val list = if (DownloadManager.isInitialized) {
+    val isDownloadManagerInitialized by DownloadManager.isInitializedFlow.collectAsState()
+    val list = if (isDownloadManagerInitialized) {
         remember(filterState, invalidateKey) {
             DownloadManager.downloadInfoList.filterTo(mutableStateListOf()) { info ->
                 filterState.take(info)

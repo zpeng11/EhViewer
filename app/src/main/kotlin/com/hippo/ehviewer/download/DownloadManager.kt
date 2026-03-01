@@ -22,11 +22,8 @@ import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.core.util.size
 import arrow.fx.coroutines.parMapNotNull
 import com.ehviewer.core.data.model.asEntity
@@ -61,6 +58,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
@@ -104,14 +104,16 @@ object DownloadManager : OnSpiderListener, CoroutineScope {
     private val sortMode
         get() = SortMode.from(Settings.downloadSortMode.value)
 
-    var isInitialized by mutableStateOf(false)
-        private set
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitializedFlow: StateFlow<Boolean> = _isInitialized.asStateFlow()
+    val isInitialized: Boolean
+        get() = _isInitialized.value
 
     init {
         launch {
             val mode = sortMode
             if (mode != SortMode.Default) sortDownloads(mode)
-            isInitialized = true
+            _isInitialized.value = true
         }
     }
 
