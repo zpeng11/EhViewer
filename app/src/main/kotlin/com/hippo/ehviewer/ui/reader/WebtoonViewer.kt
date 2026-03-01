@@ -37,6 +37,7 @@ fun WebtoonViewer(
     withGaps: Boolean,
     pages: List<Page>,
     pageLoader: PageLoader,
+    onHidePage: ((Page) -> Unit)?,
     navigator: () -> NavigationRegions,
     onSelectPage: (Page) -> Unit,
     onMenuRegionClick: () -> Unit,
@@ -90,6 +91,7 @@ fun WebtoonViewer(
                 page = page,
                 pageLoader = pageLoader,
                 contentScale = ContentScale.FillWidth,
+                onHidePage = onHidePage,
             )
         }
     }

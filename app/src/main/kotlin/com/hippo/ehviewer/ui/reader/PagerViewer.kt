@@ -59,6 +59,7 @@ fun PagerViewer(
     isVertical: Boolean,
     pages: List<Page>,
     pageLoader: PageLoader,
+    onHidePage: ((Page) -> Unit)?,
     navigator: () -> NavigationRegions,
     onSelectPage: (Page) -> Unit,
     onMenuRegionClick: () -> Unit,
@@ -86,6 +87,7 @@ fun PagerViewer(
             PageContainer(
                 page = page,
                 pageLoader = pageLoader,
+                onHidePage = onHidePage,
                 isRtl = false,
                 scaleType = scaleType,
                 landscapeZoom = landscapeZoom,
@@ -111,6 +113,7 @@ fun PagerViewer(
             PageContainer(
                 page = page,
                 pageLoader = pageLoader,
+                onHidePage = onHidePage,
                 isRtl = isRtl,
                 scaleType = scaleType,
                 landscapeZoom = landscapeZoom,
@@ -130,6 +133,7 @@ fun PagerViewer(
 private fun PageContainer(
     page: Page,
     pageLoader: PageLoader,
+    onHidePage: ((Page) -> Unit)?,
     isRtl: Boolean,
     scaleType: Int,
     landscapeZoom: Boolean,
@@ -231,6 +235,7 @@ private fun PageContainer(
             page = page,
             pageLoader = pageLoader,
             contentScale = ContentScale.Inside,
+            onHidePage = onHidePage,
             modifier = Modifier.pointerInput(onTap, page.index) {
                 detectTapGestures(onLongPress = onLongClick, onTap = onTap.partially1(null))
             },

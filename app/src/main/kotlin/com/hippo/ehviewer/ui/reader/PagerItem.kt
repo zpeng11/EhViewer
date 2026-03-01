@@ -7,8 +7,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,6 +67,7 @@ fun PagerItem(
     page: Page,
     pageLoader: PageLoader,
     contentScale: ContentScale,
+    onHidePage: ((Page) -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentModifier: Modifier = Modifier,
 ) {
@@ -163,12 +166,30 @@ fun PagerItem(
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Button(
-                        onClick = { pageLoader.retryPage(page.index) },
-                        shapes = ButtonDefaults.shapes(),
+                    Text(
+                        text = stringResource(id = R.string.reader_local_load_failed_hint),
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(
                         modifier = Modifier.padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(text = stringResource(id = R.string.action_retry))
+                        Button(
+                            onClick = { pageLoader.retryPage(page.index) },
+                            shapes = ButtonDefaults.shapes(),
+                        ) {
+                            Text(text = stringResource(id = R.string.reader_retry_local_load))
+                        }
+                        onHidePage?.let { hide ->
+                            Button(
+                                onClick = { hide(page) },
+                                shapes = ButtonDefaults.shapes(),
+                            ) {
+                                Text(text = stringResource(id = R.string.reader_hide_image))
+                            }
+                        }
                     }
                 }
             }

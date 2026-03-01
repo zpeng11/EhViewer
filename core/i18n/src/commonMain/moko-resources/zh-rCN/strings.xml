@@ -498,6 +498,7 @@
     <string name="reader_retry_local_load">重试本地加载</string>
     <string name="reader_hide_image">隐藏图片</string>
     <string name="reader_show_all_hidden_images">显示所有隐藏图片</string>
+    <string name="reader_local_load_failed_hint">当前仅支持本地内容加载。可重试本地加载，或隐藏此图片。</string>
     <string name="action_share">分享</string>
     <string name="action_copy">复制</string>
     <string name="action_save">保存</string>

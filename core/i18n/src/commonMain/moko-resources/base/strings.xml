@@ -526,6 +526,7 @@
     <string name="reader_retry_local_load">Retry local load</string>
     <string name="reader_hide_image">Hide image</string>
     <string name="reader_show_all_hidden_images">Show all hidden images</string>
+    <string name="reader_local_load_failed_hint">Only local content can be loaded. Retry local load or hide this image.</string>
     <string name="label_default">Default</string>
     <string name="rotation_free">Free</string>
     <string name="rotation_portrait">Portrait</string>

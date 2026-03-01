@@ -230,6 +230,15 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
     )
     var appbarVisible by remember { mutableStateOf(false) }
     val isWebtoon by rememberUpdatedState(ReadingModeType.isWebtoon(readingMode))
+    val onHidePage: ((Page) -> Unit)? = if (displayPages.size > 1) {
+        { target ->
+            if (target.index !in hiddenPageIndexes) {
+                hiddenPageIndexes.add(target.index)
+            }
+        }
+    } else {
+        null
+    }
     LaunchedEffect(displayPages.size, isWebtoon) {
         if (displayPages.isEmpty()) return@LaunchedEffect
         val lastIndex = displayPages.lastIndex
@@ -272,7 +281,6 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
         val onSelectPage = { page: Page ->
             if (Settings.readerLongTapAction.value) {
                 launch {
-                    val canHidePage = displayPages.size > 1
                     val hasHiddenPages = hiddenPageIndexes.isNotEmpty()
                     dialog { cont ->
                         fun dispose() = cont.resume(Unit)
@@ -285,11 +293,7 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
                         ) {
                             ReaderPageSheetMeta(
                                 retryLocal = { pageLoader.retryPage(page.index) },
-                                hide = {
-                                    if (page.index !in hiddenPageIndexes && displayPages.size > 1) {
-                                        hiddenPageIndexes.add(page.index)
-                                    }
-                                }.takeIf { canHidePage },
+                                hide = onHidePage?.let { hidePage -> { hidePage(page) } },
                                 showAllHidden = {
                                     hiddenPageIndexes.clear()
                                 }.takeIf { hasHiddenPages },
@@ -320,6 +324,7 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
                 lazyListState = lazyListState,
                 pages = displayPages,
                 pageLoader = pageLoader,
+                onHidePage = onHidePage,
                 showNavigationOverlay = showNavigationOverlay,
                 onNavigationModeChange = { showNavigationOverlay = true },
                 onSelectPage = onSelectPage,
