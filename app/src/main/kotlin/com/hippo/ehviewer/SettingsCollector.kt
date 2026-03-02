@@ -9,7 +9,6 @@ import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.client.EhEngine
 import com.hippo.ehviewer.client.EhTagDatabase
-import com.hippo.ehviewer.dailycheck.updateDailyCheckWork
 import com.hippo.ehviewer.ui.keepNoMediaFileStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +19,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.launch
-import splitties.init.appCtx
 import splitties.systemservices.uiModeManager
 
 private const val TAG = "SettingsCollector"
@@ -54,7 +52,7 @@ suspend fun updateWhenThemeChanges(theme: Int) {
 }
 
 fun updateWhenRequestNewsChanges() {
-    updateDailyCheckWork(appCtx)
+    // Step 1 local-only mode: disable startup daily check scheduling.
 }
 
 suspend fun updateWhenGallerySiteChanges(gallerySite: Int) {

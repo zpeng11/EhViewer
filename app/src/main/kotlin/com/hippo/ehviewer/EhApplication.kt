@@ -57,7 +57,6 @@ import com.hippo.ehviewer.coil.HardwareBitmapInterceptor
 import com.hippo.ehviewer.coil.MapExtraInfoInterceptor
 import com.hippo.ehviewer.coil.MergeInterceptor
 import com.hippo.ehviewer.coil.QrCodeInterceptor
-import com.hippo.ehviewer.dailycheck.checkDawn
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.download.DownloadsFilterMode
 import com.hippo.ehviewer.ktbuilder.diskCache
@@ -137,9 +136,6 @@ class EhApplication : Application(), SingletonImageLoader.Factory {
                 FileUtils.cleanupDirectory(AppConfig.externalParseErrorDir)
             }
             launch { cleanupDownload() }
-            if (Settings.requestNews.value) {
-                launch { checkDawn() }
-            }
         }
         if (BuildConfig.DEBUG) {
             StrictMode.enableDefaults()

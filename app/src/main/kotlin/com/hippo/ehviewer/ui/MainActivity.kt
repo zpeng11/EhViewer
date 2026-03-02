@@ -120,13 +120,10 @@ import com.hippo.ehviewer.ui.destinations.DownloadScreenDestination
 import com.hippo.ehviewer.ui.destinations.DownloadsScreenDestination
 import com.hippo.ehviewer.ui.destinations.HistoryScreenDestination
 import com.hippo.ehviewer.ui.destinations.SettingsScreenDestination
-import com.hippo.ehviewer.ui.settings.showNewVersion
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
-import com.hippo.ehviewer.updater.AppUpdater
 import com.hippo.ehviewer.util.AppConfig
 import com.hippo.ehviewer.util.calculateFraction
-import com.hippo.ehviewer.util.displayString
 import com.ramcosta.composedestinations.DestinationsNavHost
 import com.ramcosta.composedestinations.spec.Direction
 import com.ramcosta.composedestinations.utils.currentDestinationAsState
@@ -138,7 +135,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import moe.tarsin.coroutines.runSuspendCatching
 import splitties.systemservices.connectivityManager
 
 private val navItems = arrayOf<Triple<Direction, Int, ImageVector>>(
@@ -214,23 +210,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            val hasNetwork = remember { connectivityManager.activeNetwork != null }
             if (!AppConfig.isBenchmark) {
-                val noNetwork = stringResource(R.string.no_network)
                 LaunchedEffect(Unit) {
                     runCatching { checkDownloadLocation() }
                     runCatching { checkAppLinkVerify() }
-                    if (hasNetwork) {
-                        runSuspendCatching {
-                            withIOContext {
-                                AppUpdater.checkForUpdate()?.let { showNewVersion(it) }
-                            }
-                        }.onFailure {
-                            snackbarState.showSnackbar(getString(R.string.update_failed, it.displayString()))
-                        }
-                    } else {
-                        snackbarState.showSnackbar(noNetwork)
-                    }
                 }
             }
 

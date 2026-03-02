@@ -119,7 +119,7 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/UConfigScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/settings/MyTagsScreen.kt`
 
-- [ ] `S1-APP-01` 移除应用启动中的软件网络任务（更新检查、dailycheck），但保留日常使用的如tag拉取翻译等网络功能  
+- [x] `S1-APP-01` 移除应用启动中的软件网络任务（更新检查、dailycheck），但保留日常使用的如tag拉取翻译等网络功能  
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhApplication.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/SettingsCollector.kt`
@@ -322,3 +322,5 @@
 | 2026-03-01 08:01 | Step 1 | S1-READ-04 | x | agent | 用户确认失败态文案符合预期：缺页场景稳定显示“读取失败”，并仅保留“重试本地加载/隐藏” | 实机验证通过（用户反馈 PASS） | 本次回归修复闭环完成 |
 | 2026-03-01 18:52 | Step 1 | S1-SET-01 | ~ | agent | EH 设置页完成本地化瘦身：移除账户/站点/画廊评论/新闻等网络配置与入口；`UConfigScreen`/`MyTagsScreen` 降级为禁用静态页防止误触网；保留缩略图、阅读进度、标签翻译、主题与过滤配置 | 按 `docs/wsl-local-build-install.md` 执行：`prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（serial=192.168.2.93:36057，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-02 07:52:10） | 等待用户实机验证设置页瘦身结果后再标记 x 并提交 |
 | 2026-03-01 18:57 | Step 1 | S1-SET-01 | x | agent | 用户确认 `S1-SET-01 PASS`，EH 设置页瘦身验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-APP-01 |
+| 2026-03-01 19:01 | Step 1 | S1-APP-01 | ~ | agent | 启动阶段网络任务瘦身：`EhApplication` 移除 `checkDawn` 启动触发，`SettingsCollector.updateWhenRequestNewsChanges` 改为 no-op；并补充移除 `MainActivity` 冷启动自动更新检查（`AppUpdater.checkForUpdate`）以满足“更新检查+dailycheck”目标，保留标签翻译自动更新 | 按 `docs/wsl-local-build-install.md` 执行：`prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 成功，`assembleRelease` 成功，ADB 安装成功（serial=192.168.2.93:36057，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-02 08:01:11） | 等待用户实机验证“启动不再自动更新检查/dailycheck”后再标记 x 并提交 |
+| 2026-03-01 19:15 | Step 1 | S1-APP-01 | x | agent | 用户确认 `S1-APP-01 PASS`，启动网络任务下线验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-MAN-01 |
