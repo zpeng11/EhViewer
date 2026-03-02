@@ -59,7 +59,6 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberDrawerState
@@ -107,13 +106,11 @@ import com.ehviewer.core.ui.component.LocalSideSheetState
 import com.ehviewer.core.ui.component.MutableSideSheet
 import com.ehviewer.core.ui.util.LocalSnackBarFabPadding
 import com.ehviewer.core.ui.util.LocalWindowSizeClass
-import com.ehviewer.core.util.isAtLeastQ
 import com.ehviewer.core.util.isAtLeastR
 import com.ehviewer.core.util.isAtLeastS
 import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.EhApplication.Companion.initialized
 import com.hippo.ehviewer.Settings
-import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadService
 import com.hippo.ehviewer.download.downloadLocation
 import com.hippo.ehviewer.ui.destinations.DownloadScreenDestination
@@ -135,7 +132,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import splitties.systemservices.connectivityManager
 
 private val navItems = arrayOf<Triple<Direction, Int, ImageVector>>(
     Triple(DownloadsScreenDestination, R.string.downloads, Icons.Default.Download),
@@ -258,24 +254,6 @@ class MainActivity : AppCompatActivity() {
             LaunchedEffect(Unit) {
                 tipFlow.collectLatest {
                     snackbarState.showSnackbar(it)
-                }
-            }
-            val warning = stringResource(R.string.metered_network_warning)
-            val settings = stringResource(R.string.settings)
-            val checkMeteredNetwork by Settings.meteredNetworkWarning.collectAsState()
-            if (checkMeteredNetwork) {
-                LaunchedEffect(Unit) {
-                    if (connectivityManager.isActiveNetworkMetered) {
-                        if (isAtLeastQ) {
-                            val ret = snackbarState.showSnackbar(warning, settings, true)
-                            if (ret == SnackbarResult.ActionPerformed) {
-                                val panelIntent = Intent(android.provider.Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
-                                startActivity(panelIntent)
-                            }
-                        } else {
-                            snackbarState.showSnackbar(warning)
-                        }
-                    }
                 }
             }
             val currentDestination by navController.currentDestinationAsState()
