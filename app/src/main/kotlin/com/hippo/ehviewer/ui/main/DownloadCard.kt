@@ -3,7 +3,6 @@ package com.hippo.ehviewer.ui.main
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,12 +31,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ehviewer.core.database.model.DownloadInfo
+import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.ui.component.CrystalCard
 import com.ehviewer.core.ui.component.GalleryListCardRating
 import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.listThumbGenerator
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.client.EhUtils
+import com.hippo.ehviewer.util.FavouriteStatusRouter
 
 @Composable
 context(_: SharedTransitionScope, _: TransitionsVisibilityScope)
@@ -111,7 +113,15 @@ fun DownloadCard(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                Box(modifier = Modifier.offset(4.dp).minimumInteractiveComponentSize()) {
+                val isFavorited by FavouriteStatusRouter.collectAsState(info) { it != NOT_FAVORITED }
+                Column(modifier = Modifier.offset(4.dp).minimumInteractiveComponentSize()) {
+                    if (isFavorited) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = EhUtils.favoriteIconColor,
+                        )
+                    }
                     Icon(
                         imageVector = Icons.Default.DownloadDone,
                         contentDescription = null,

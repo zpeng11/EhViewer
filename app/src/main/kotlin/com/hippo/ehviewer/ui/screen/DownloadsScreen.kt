@@ -36,8 +36,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NewLabel
 import androidx.compose.material.icons.filled.Reorder
@@ -83,7 +85,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import arrow.core.partially1
 import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.TagNamespace
@@ -117,10 +118,12 @@ import com.hippo.ehviewer.download.DownloadsFilterMode
 import com.hippo.ehviewer.download.SortMode
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
+import com.hippo.ehviewer.ui.addToFavorites
 import com.hippo.ehviewer.ui.confirmRemoveDownloadRange
 import com.hippo.ehviewer.ui.main.DownloadCard
 import com.hippo.ehviewer.ui.main.GalleryInfoGridItem
 import com.hippo.ehviewer.ui.navToReader
+import com.hippo.ehviewer.ui.removeFromFavorites
 import com.hippo.ehviewer.ui.showMoveDownloadLabelList
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
@@ -134,6 +137,7 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import moe.tarsin.navigate
+import moe.tarsin.tip
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -228,6 +232,33 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         Settings.recentDownloadLabel.value = label
         filterState = filterState.copy(label = label)
         fabHidden = false
+    }
+
+    suspend fun updateFavoritesInSelection(favorited: Boolean) {
+        val selectedInfo = checkedInfoMap.values.toList()
+        var changed = 0
+        var failed = false
+        selectedInfo.forEach { info ->
+            val isFavorited = EhDB.containLocalFavorites(info.gid)
+            if (isFavorited != favorited) {
+                runCatching {
+                    if (favorited) {
+                        addToFavorites(info)
+                    } else {
+                        removeFromFavorites(info)
+                    }
+                }.onSuccess {
+                    changed++
+                }.onFailure {
+                    failed = true
+                }
+            }
+        }
+        when {
+            failed -> tip(if (favorited) R.string.add_to_favorite_failure else R.string.remove_from_favorite_failure)
+            changed > 0 -> tip(if (favorited) R.string.add_to_favorite_success else R.string.remove_from_favorite_success)
+        }
+        checkedInfoMap.clear()
     }
 
     LaunchedEffect(filterState) {
@@ -554,6 +585,14 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
             navToReader(info.galleryInfo)
         }
 
+        fun toggleChecked(info: DownloadInfo) {
+            if (info.gid in checkedInfoMap) {
+                checkedInfoMap.remove(info.gid)
+            } else {
+                checkedInfoMap[info.gid] = info
+            }
+        }
+
         Crossfade(targetState = gridView, label = "Downloads") { showGridView ->
             if (showGridView) {
                 val gridInterval = dimensionResource(com.hippo.ehviewer.R.dimen.gallery_grid_interval)
@@ -566,14 +605,28 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                     horizontalArrangement = Arrangement.spacedBy(gridInterval),
                 ) {
                     items(list, key = { it.gid }) { info ->
-                        GalleryInfoGridItem(
-                            onClick = ::onItemClick.partially1(info),
-                            onLongClick = { navigate(info.galleryInfo.asDst()) },
-                            info = info,
+                        val checked = info.gid in checkedInfoMap
+                        CheckableItem(
+                            checked = checked,
                             modifier = Modifier.thenIf(animateItems) { animateItem() },
-                            showLanguage = false,
-                            showProgress = showProgress,
-                        )
+                        ) { interactionSource ->
+                            GalleryInfoGridItem(
+                                onClick = {
+                                    if (selectMode) {
+                                        toggleChecked(info)
+                                    } else {
+                                        onItemClick(info)
+                                    }
+                                },
+                                onLongClick = {
+                                    toggleChecked(info)
+                                },
+                                info = info,
+                                showLanguage = false,
+                                showProgress = showProgress,
+                                interactionSource = interactionSource,
+                            )
+                        }
                     }
                 }
             } else {
@@ -591,11 +644,7 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                             DownloadCard(
                                 onClick = {
                                     if (selectMode) {
-                                        if (checked) {
-                                            checkedInfoMap.remove(info.gid)
-                                        } else {
-                                            checkedInfoMap[info.gid] = info
-                                        }
+                                        toggleChecked(info)
                                     } else {
                                         onItemClick(info)
                                     }
@@ -604,7 +653,7 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                                     navigate(info.galleryInfo.asDst())
                                 },
                                 onLongClick = {
-                                    checkedInfoMap[info.gid] = info
+                                    toggleChecked(info)
                                 },
                                 info = info,
                                 selectMode = selectMode,
@@ -697,6 +746,12 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
             onClick(Icons.Default.DoneAll, autoClose = false) {
                 val info = list.associateBy { it.gid }
                 checkedInfoMap.putAll(info)
+            }
+            onClick(Icons.Default.Favorite, autoClose = false) {
+                updateFavoritesInSelection(true)
+            }
+            onClick(Icons.Default.HeartBroken, autoClose = false) {
+                updateFavoritesInSelection(false)
             }
             onClick(Icons.Default.Delete) {
                 val infoList = checkedInfoMap.takeAndClear()

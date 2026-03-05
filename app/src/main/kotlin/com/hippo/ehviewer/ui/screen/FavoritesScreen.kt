@@ -15,11 +15,10 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DriveFileMove
-import androidx.compose.material.icons.automirrored.filled.LastPage
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.outlined.FolderSpecial
@@ -34,7 +33,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.currentRecomposeScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -59,30 +57,23 @@ import com.ehviewer.core.ui.component.FAB_ANIMATE_TIME
 import com.ehviewer.core.ui.component.FabLayout
 import com.ehviewer.core.ui.component.LocalSideSheetState
 import com.ehviewer.core.ui.component.ProvideSideSheetContent
-import com.ehviewer.core.ui.icons.EhIcons
-import com.ehviewer.core.ui.icons.filled.GoTo
 import com.ehviewer.core.ui.util.asyncState
 import com.ehviewer.core.ui.util.takeAndClear
 import com.ehviewer.core.ui.util.thenIf
 import com.ehviewer.core.util.launch
-import com.ehviewer.core.util.mapToLongArray
 import com.ehviewer.core.util.onEachLatest
 import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
-import com.hippo.ehviewer.client.EhEngine
+import com.hippo.ehviewer.asMutableState
 import com.hippo.ehviewer.client.data.FavListUrlBuilder
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
-import com.hippo.ehviewer.ui.awaitSelectDate
-import com.hippo.ehviewer.ui.main.AvatarIcon
 import com.hippo.ehviewer.ui.main.GalleryInfoGridItem
 import com.hippo.ehviewer.ui.main.GalleryInfoListItem
 import com.hippo.ehviewer.ui.main.GalleryList
-import com.hippo.ehviewer.ui.startDownload
-import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
-import com.hippo.ehviewer.ui.tools.awaitSelectItem
+import com.hippo.ehviewer.ui.removeFromFavorites
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -96,9 +87,8 @@ import moe.tarsin.navigate
 fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, viewModel: FavoritesViewModel = viewModel()) = Screen(navigator) {
     // Immutables
     val localFavName = stringResource(R.string.local_favorites)
-    val cloudFavName = stringResource(R.string.cloud_favorites)
     val animateItems by Settings.animateItems.collectAsState()
-    val hasSignedIn by Settings.hasSignedIn.collectAsState()
+    var listMode by Settings.listMode.asMutableState()
 
     // Meta State
     var urlBuilder by viewModel.urlBuilder
@@ -109,13 +99,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
 
     // Derived State
     val keyword = urlBuilder.keyword
-    val favCatName = remember(urlBuilder) {
-        when (val favCat = urlBuilder.favCat) {
-            in 0..9 -> Settings.favCat[favCat]
-            FavListUrlBuilder.FAV_CAT_LOCAL -> localFavName.also { searchBarOffsetY = 0 }
-            else -> cloudFavName
-        }
-    }
+    val favCatName = localFavName
     val title = if (keyword.isNullOrBlank()) {
         stringResource(R.string.favorites_title, favCatName)
     } else {
@@ -130,6 +114,13 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         data.refresh()
     }
 
+    LaunchedEffect(urlBuilder.favCat) {
+        if (!urlBuilder.isLocal) {
+            refresh(FavListUrlBuilder(FavListUrlBuilder.FAV_CAT_LOCAL, keyword = keyword))
+            Settings.recentFavCat = FavListUrlBuilder.FAV_CAT_LOCAL
+        }
+    }
+
     ProvideSideSheetContent { sheetState ->
         val localFavCount by viewModel.localFavCount.collectAsState(0)
         TopAppBar(
@@ -137,38 +128,22 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             windowInsets = WindowInsets(),
             colors = topBarOnDrawerColor(),
         )
-        val scope = currentRecomposeScope
-        LaunchedEffect(Unit) {
-            Settings.favChangesFlow.collect {
-                scope.invalidate()
-            }
-        }
-        val localFav = stringResource(id = R.string.local_favorites) to localFavCount
-        val faves = if (hasSignedIn) {
-            arrayOf(
-                localFav,
-                stringResource(id = R.string.cloud_favorites) to Settings.favCloudCount,
-                *Settings.favCat.zip(Settings.favCount.toTypedArray()).toTypedArray(),
-            )
-        } else {
-            arrayOf(localFav)
-        }
+        val faves = arrayOf(stringResource(id = R.string.local_favorites) to localFavCount)
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 4.dp)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom)),
         ) {
-            faves.forEachIndexed { index, (name, count) ->
+            faves.forEach { (name, count) ->
                 ListItem(
                     headlineContent = { Text(text = name) },
                     trailingContent = { Text(text = count.toString(), style = MaterialTheme.typography.bodyLarge) },
                     modifier = Modifier.clip(CardDefaults.shape).clickable {
-                        val newCat = index - 2
-                        refresh(FavListUrlBuilder(newCat))
-                        Settings.recentFavCat = newCat
+                        refresh(FavListUrlBuilder(FavListUrlBuilder.FAV_CAT_LOCAL))
+                        Settings.recentFavCat = FavListUrlBuilder.FAV_CAT_LOCAL
                         fabHidden = false
                         launch { sheetState.close() }
                     },
-                    colors = listItemOnDrawerColor(urlBuilder.favCat == index - 2),
+                    colors = listItemOnDrawerColor(urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL),
                 )
             }
         }
@@ -188,17 +163,24 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         },
         title = title,
         searchFieldHint = searchBarHint,
-        localSearch = urlBuilder.isLocal,
+        localSearch = true,
         searchBarOffsetY = { searchBarOffsetY },
         trailingIcon = {
             val sheetState = LocalSideSheetState.current
+            IconButton(
+                onClick = {
+                    listMode = if (listMode == 0) 1 else 0
+                },
+                shapes = IconButtonDefaults.shapes(),
+            ) {
+                val icon = if (listMode == 0) Icons.Default.GridView else Icons.AutoMirrored.Default.ViewList
+                Icon(imageVector = icon, contentDescription = null)
+            }
             IconButton(onClick = { launch { sheetState.open() } }, shapes = IconButtonDefaults.shapes()) {
                 Icon(imageVector = Icons.Outlined.FolderSpecial, contentDescription = null)
             }
-            AvatarIcon()
         },
     ) { contentPadding ->
-        val listMode by Settings.listMode.collectAsState()
         val height by collectListThumbSizeAsState()
         val showPages by Settings.showGalleryPages.collectAsState()
         val showProgress by Settings.showReadingProgress.collectAsState()
@@ -308,82 +290,27 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         autoCancel = !selectMode,
     ) {
         if (!selectMode) {
-            if (urlBuilder.isLocal) {
-                onClick(Icons.Default.Shuffle) {
-                    EhDB.randomLocalFav()?.let { info ->
-                        withUIContext { navigate(info.asDst()) }
-                    }
+            onClick(Icons.Default.Shuffle) {
+                EhDB.randomLocalFav()?.let { info ->
+                    withUIContext { navigate(info.asDst()) }
                 }
-            }
-            onClick(EhIcons.Default.GoTo) {
-                val date = awaitSelectDate()
-                refresh(urlBuilder.copy(jumpTo = date, prev = null, next = "2"))
             }
             onClick(Icons.Default.Refresh) {
                 refresh()
-            }
-            onClick(Icons.AutoMirrored.Default.LastPage) {
-                refresh(urlBuilder.copy(jumpTo = null, prev = "1-0", next = null))
             }
         } else {
             onClick(Icons.Default.DoneAll, autoClose = false) {
                 val info = data.itemSnapshotList.items.associateBy { it.gid }
                 checkedInfoMap.putAll(info)
             }
-            onClick(Icons.Default.Download) {
+            onClick(Icons.Default.HeartBroken) {
                 val info = checkedInfoMap.takeAndClear()
                 runSwallowingWithUI {
-                    startDownload(false, *info.toTypedArray())
-                }
-            }
-            onClick(Icons.Default.Delete) {
-                val info = checkedInfoMap.takeAndClear()
-                awaitConfirmationOrCancel(title = R.string.delete_favorites_dialog_title) {
-                    Text(text = stringResource(R.string.delete_favorites_dialog_message, info.size))
-                }
-                val srcCat = urlBuilder.favCat
-                runSwallowingWithUI {
-                    if (srcCat == FavListUrlBuilder.FAV_CAT_LOCAL) { // Delete local fav
-                        EhDB.removeLocalFavorites(info)
-                    } else {
-                        val delList = info.mapToLongArray(BaseGalleryInfo::gid)
-                        EhEngine.modifyFavorites(delList, srcCat, -1)
+                    info.forEach {
+                        removeFromFavorites(it)
                     }
                 }
-                // We refresh anyway as cloud data maybe partially modified
                 data.refresh()
-            }
-            onClick(Icons.AutoMirrored.Default.DriveFileMove) {
-                // First is local favorite, the other 10 is cloud favorite
-                val items = buildList {
-                    add(localFavName)
-                    if (hasSignedIn) {
-                        addAll(Settings.favCat)
-                    }
-                }
-                val index = awaitSelectItem(items, R.string.move_favorites_dialog_title)
-                val srcCat = urlBuilder.favCat
-                val dstCat = if (index == 0) FavListUrlBuilder.FAV_CAT_LOCAL else index - 1
-                val info = checkedInfoMap.takeAndClear()
-                if (srcCat != dstCat) {
-                    runSwallowingWithUI {
-                        if (srcCat == FavListUrlBuilder.FAV_CAT_LOCAL) {
-                            // Move from local to cloud
-                            val galleryList = info.map { it.gid to it.token }
-                            EhEngine.addFavorites(galleryList, dstCat)
-                            EhDB.removeLocalFavorites(info)
-                        } else if (dstCat == FavListUrlBuilder.FAV_CAT_LOCAL) {
-                            // Move from cloud to local
-                            EhDB.putLocalFavorites(info)
-                        } else {
-                            // Move from cloud to cloud
-                            val gidArray = info.mapToLongArray(BaseGalleryInfo::gid)
-                            EhEngine.modifyFavorites(gidArray, srcCat, dstCat)
-                        }
-                    }
-                    // We refresh anyway as cloud data maybe partially modified
-                    data.refresh()
-                }
             }
         }
     }

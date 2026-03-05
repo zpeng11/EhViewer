@@ -46,6 +46,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerDefaults
@@ -115,6 +116,7 @@ import com.hippo.ehviewer.download.DownloadService
 import com.hippo.ehviewer.download.downloadLocation
 import com.hippo.ehviewer.ui.destinations.DownloadScreenDestination
 import com.hippo.ehviewer.ui.destinations.DownloadsScreenDestination
+import com.hippo.ehviewer.ui.destinations.FavouritesScreenDestination
 import com.hippo.ehviewer.ui.destinations.HistoryScreenDestination
 import com.hippo.ehviewer.ui.destinations.SettingsScreenDestination
 import com.hippo.ehviewer.ui.tools.DialogState
@@ -135,6 +137,7 @@ import kotlinx.coroutines.launch
 
 private val navItems = arrayOf<Triple<Direction, Int, ImageVector>>(
     Triple(DownloadsScreenDestination, R.string.downloads, Icons.Default.Download),
+    Triple(FavouritesScreenDestination, R.string.favourite, Icons.Default.Favorite),
     Triple(HistoryScreenDestination, R.string.history, Icons.Default.History),
     Triple(SettingsScreenDestination, R.string.settings, Icons.Default.Settings),
 )

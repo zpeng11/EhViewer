@@ -53,9 +53,7 @@ import com.ehviewer.core.util.toLocalDateTime
 import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
-import com.hippo.ehviewer.client.EhEngine
 import com.hippo.ehviewer.client.EhUtils
-import com.hippo.ehviewer.client.exception.EhException
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.download.DownloadService
 import com.hippo.ehviewer.download.downloadDir
@@ -70,9 +68,7 @@ import com.hippo.ehviewer.ui.tools.awaitSelectDate
 import com.hippo.ehviewer.ui.tools.awaitSelectItem
 import com.hippo.ehviewer.ui.tools.awaitSelectItemWithCheckBox
 import com.hippo.ehviewer.ui.tools.awaitSelectItemWithIcon
-import com.hippo.ehviewer.ui.tools.awaitSelectItemWithIconAndTextField
 import com.hippo.ehviewer.util.FavouriteStatusRouter
-import com.hippo.ehviewer.util.bgWork
 import com.hippo.ehviewer.util.requestPermission
 import com.hippo.ehviewer.util.restartApplication
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -177,93 +173,30 @@ suspend fun startDownload(forceDefault: Boolean, vararg galleryInfos: BaseGaller
 }
 
 context(_: DialogState)
+suspend fun addToFavorites(galleryInfo: GalleryInfo): Boolean = updateLocalFavorite(galleryInfo, true)
+
+context(_: DialogState)
 suspend fun modifyFavorites(galleryInfo: GalleryInfo): Boolean {
-    val localFavorited = EhDB.containLocalFavorites(galleryInfo.gid)
-    if (Settings.hasSignedIn.value) {
-        val isFavorited = galleryInfo.favoriteSlot != NOT_FAVORITED
-        val defaultFavSlot = Settings.defaultFavSlot.value
-        if (defaultFavSlot == -2) {
-            val localFav = getFavoriteIcon(localFavorited) to appCtx.getString(R.string.local_favorites)
-            val cloudFav = Settings.favCat.mapIndexed { index, name ->
-                getFavoriteIcon(galleryInfo.favoriteSlot == index) to name
-            }
-            val items = buildList {
-                if (isFavorited) {
-                    val remove = Icons.Default.HeartBroken to appCtx.getString(R.string.remove_from_favourites)
-                    add(remove)
-                }
-                add(localFav)
-                addAll(cloudFav)
-            }
-            if (galleryInfo.favoriteSlot >= 0 && galleryInfo.favoriteNote == null) {
-                galleryInfo.favoriteNote = bgWork { EhEngine.getFavoriteNote(galleryInfo.gid, galleryInfo.token) }
-            }
-            val (slot, note) = awaitSelectItemWithIconAndTextField(
-                items,
-                title = R.string.add_favorites_dialog_title,
-                hint = R.string.favorite_note,
-                initialNote = galleryInfo.favoriteNote.orEmpty(),
-                maxChar = MAX_FAVNOTE_CHAR,
-            )
-            return doModifyFavorites(galleryInfo, if (isFavorited) slot - 2 else slot - 1, localFavorited, note)
-        } else {
-            return doModifyFavorites(galleryInfo, if (isFavorited) NOT_FAVORITED else defaultFavSlot, localFavorited)
-        }
-    } else {
-        return doModifyFavorites(galleryInfo, LOCAL_FAVORITED, localFavorited)
-    }
+    val isFavorited = EhDB.containLocalFavorites(galleryInfo.gid)
+    return updateLocalFavorite(galleryInfo, !isFavorited)
 }
 
-private suspend fun doModifyFavorites(
-    galleryInfo: GalleryInfo,
-    slot: Int = NOT_FAVORITED,
-    localFavorited: Boolean = true,
-    note: String = "",
-) = with(galleryInfo) {
-    val add = when (slot) {
-        NOT_FAVORITED -> { // Remove from cloud favorites first
-            if (favoriteSlot > LOCAL_FAVORITED) {
-                EhEngine.modifyFavorites(gid, token)
-                favoriteSlot = if (localFavorited) LOCAL_FAVORITED else NOT_FAVORITED
-                favoriteName = null
-                favoriteNote = null
-            } else {
-                EhDB.removeLocalFavorites(galleryInfo)
-                favoriteSlot = NOT_FAVORITED
-            }
-            false
-        }
-        LOCAL_FAVORITED -> {
-            if (localFavorited) {
-                EhDB.removeLocalFavorites(galleryInfo)
-            } else {
-                EhDB.putLocalFavorites(galleryInfo)
-            }
-            // Keep cloud favorite slot
-            if (favoriteSlot == NOT_FAVORITED) {
-                favoriteSlot = LOCAL_FAVORITED
-            } else if (favoriteSlot == LOCAL_FAVORITED) {
-                favoriteSlot = NOT_FAVORITED
-            }
-            !localFavorited
-        }
-        in 0..9 -> {
-            EhEngine.modifyFavorites(gid, token, slot, note)
-            favoriteSlot = slot
-            favoriteName = Settings.favCat[slot]
-            favoriteNote = note
-            true
-        }
-        else -> throw EhException("Invalid favorite slot!")
+private suspend fun updateLocalFavorite(galleryInfo: GalleryInfo, favorited: Boolean): Boolean = with(galleryInfo) {
+    if (favorited) {
+        EhDB.putLocalFavorites(galleryInfo)
+        favoriteSlot = LOCAL_FAVORITED
+        favoriteName = appCtx.getString(R.string.local_favorites)
+    } else {
+        EhDB.removeLocalFavorites(galleryInfo)
+        favoriteSlot = NOT_FAVORITED
+        favoriteName = null
+        favoriteNote = null
     }
     FavouriteStatusRouter.notify(galleryInfo)
-    add
+    favorited
 }
 
-suspend fun removeFromFavorites(galleryInfo: GalleryInfo) = doModifyFavorites(
-    galleryInfo = galleryInfo,
-    localFavorited = EhDB.containLocalFavorites(galleryInfo.gid),
-)
+suspend fun removeFromFavorites(galleryInfo: GalleryInfo) = updateLocalFavorite(galleryInfo, false)
 
 context(_: DestinationsNavigator)
 fun navToReader(info: BaseGalleryInfo, page: Int = -1) = navToReader(ReaderScreenArgs.Gallery(info, page))
@@ -277,7 +210,7 @@ private fun navToReader(args: ReaderScreenArgs) = nav.navigate(ReaderScreenDesti
 context(_: DialogState, _: MainActivity, _: DestinationsNavigator)
 suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
     val downloaded = DownloadManager.getDownloadState(info.gid) != DownloadInfo.STATE_INVALID
-    val favorited = info.favoriteSlot != NOT_FAVORITED
+    val favorited = EhDB.containLocalFavorites(info.gid)
     val items = buildList {
         add(Icons.AutoMirrored.Default.MenuBook to R.string.read)
         val download = if (downloaded) {
@@ -287,9 +220,9 @@ suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
         }
         add(download)
         val favorite = if (favorited) {
-            Icons.Default.HeartBroken to R.string.remove_from_favourites
+            Icons.Default.HeartBroken to R.string.remove_from_local_favourites
         } else {
-            Icons.Default.Favorite to R.string.add_to_favourites
+            Icons.Default.Favorite to R.string.add_to_local_favourites
         }
         add(favorite)
         if (downloaded) {
@@ -316,7 +249,7 @@ suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
             }
         } else {
             runSuspendCatching {
-                modifyFavorites(info)
+                addToFavorites(info)
                 tip(R.string.add_to_favorite_success)
             }.onFailure {
                 tip(R.string.add_to_favorite_failure)
@@ -325,8 +258,6 @@ suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
         3 -> showMoveDownloadLabel(info)
     }
 }
-
-private const val MAX_FAVNOTE_CHAR = 200
 
 context(_: DialogState)
 private suspend fun confirmRemoveDownload(text: String): Boolean {

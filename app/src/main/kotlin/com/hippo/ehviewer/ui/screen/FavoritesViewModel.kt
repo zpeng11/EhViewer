@@ -32,7 +32,13 @@ class FavoritesViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
     private val mutex = Mutex()
 
     val urlBuilder by savedStateHandle.saved(MutableStateSerializer()) {
-        mutableStateOf(FavListUrlBuilder(favCat = Settings.recentFavCat))
+        mutableStateOf(FavListUrlBuilder(favCat = FavListUrlBuilder.FAV_CAT_LOCAL))
+    }
+
+    init {
+        if (!urlBuilder.value.isLocal) {
+            urlBuilder.value = FavListUrlBuilder(favCat = FavListUrlBuilder.FAV_CAT_LOCAL, keyword = urlBuilder.value.keyword)
+        }
     }
 
     val localFavCount = EhDB.localFavCount

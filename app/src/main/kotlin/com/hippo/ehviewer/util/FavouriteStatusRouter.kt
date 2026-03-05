@@ -26,6 +26,7 @@ import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.ui.util.launchInVM
 import com.ehviewer.core.ui.util.rememberUpdatedStateInVM
 import com.hippo.ehviewer.EhDB
+import com.hippo.ehviewer.download.DownloadManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.FlowCollector
@@ -34,8 +35,8 @@ import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 
 object FavouriteStatusRouter {
-    fun notify(galleryInfo: GalleryInfo) {
-        globalFlow.tryEmit(galleryInfo)
+    suspend fun notify(galleryInfo: GalleryInfo) {
+        globalFlow.emit(galleryInfo)
     }
 
     private val listenerScope = CoroutineScope(Dispatchers.IO)
@@ -43,7 +44,12 @@ object FavouriteStatusRouter {
     val globalFlow = MutableSharedFlow<GalleryInfo>(extraBufferCapacity = 1).apply {
         listenerScope.launch {
             collect { info ->
-                EhDB.updateFavoriteSlot(info.gid, info.favoriteSlot)
+                EhDB.updateFavoriteSlot(info.gid, info.favoriteSlot, info.favoriteName, info.favoriteNote)
+                DownloadManager.getDownloadInfo(info.gid)?.apply {
+                    favoriteSlot = info.favoriteSlot
+                    favoriteName = info.favoriteName
+                    favoriteNote = info.favoriteNote
+                }
             }
         }
     }
@@ -62,7 +68,11 @@ object FavouriteStatusRouter {
         launchInVM {
             collect { info ->
                 realList.forEach { item ->
-                    if (item.gid == info.gid) item.favoriteSlot = info.favoriteSlot
+                    if (item.gid == info.gid) {
+                        item.favoriteSlot = info.favoriteSlot
+                        item.favoriteName = info.favoriteName
+                        item.favoriteNote = info.favoriteNote
+                    }
                 }
             }
         }
