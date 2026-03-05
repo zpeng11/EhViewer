@@ -138,7 +138,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-FAV-02` 本地收藏数据模型升级：引入“额外收藏夹定义 + 额外归属”结构，保证单条收藏最多归属一个额外收藏夹，且额外收藏夹 ID 限定 1..9
+- [x] `S1-FAV-02` 本地收藏数据模型升级：引入“额外收藏夹定义 + 额外归属”结构，保证单条收藏最多归属一个额外收藏夹，且额外收藏夹 ID 限定 1..9
   文件域：
   - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/model/**`
   - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/dao/**`
@@ -398,3 +398,7 @@
 | 2026-03-04 21:10 | Step 1 | S1-FAV-01 | ~ | agent | 修复收藏通知丢事件导致的单向不同步：`FavouriteStatusRouter.notify` 从 `tryEmit` 改为挂起 `emit`，保证“收藏页移除收藏”事件不会因缓冲区满而丢失，从而稳定同步到下载页红心状态 | `:app:compileDefaultDebugKotlin` 成功，`:app:assembleDebug` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitions*Release`、`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 10:10:34） | 等待用户复测：在收藏页移除收藏后返回下载页，红心应同步消失 |
 | 2026-03-04 21:18 | Step 1 | S1-FAV-01 | ~ | agent | 根据用户反馈对齐下载页与收藏页的多选动效：下载页网格（gallery）多选项补充 `CheckableItem` 包裹，显示打钩覆盖并复用同一交互源，确保勾选视觉反馈与动画表现一致 | `:app:compileDefaultDebugKotlin` 成功，`:app:assembleDebug` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitions*Release`、`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 10:18:29） | 等待用户复测下载页网格多选：应出现与收藏页一致的打钩和勾选动画反馈 |
 | 2026-03-04 21:22 | Step 1 | S1-FAV-01 | x | agent | 用户确认 `S1-FAV-01 PASS`，本地收藏功能与下载/收藏双页联动、多选收藏动作及下载页网格多选动效对齐验收通过 | 实机验证通过（用户反馈 PASS） | 按流程执行提交并推送远端 |
+| 2026-03-04 23:41 | Step 1 | S1-FAV-02 | ~ | agent | 启动本地收藏数据模型升级：准备引入“额外收藏夹定义 + 额外归属”结构，约束额外收藏夹 ID 仅允许 1..9，并保持单条收藏最多一个额外归属 | 进行中 | 先完成 core/data 模型与数据库迁移，再执行构建安装与实机验收 |
+| 2026-03-04 23:45 | Step 1 | S1-FAV-02 | ~ | agent | 完成 `core/data` 模型升级：新增 `LOCAL_FAVORITE_FOLDERS` 实体/DAO；`LOCAL_FAVORITES` 新增 `EXTRA_FAVORITE_SLOT`（可空）并扩展查询/更新接口；数据库版本升级到 24，新增 `Schema23to24` 清洗越界 slot | `:app:compileDefaultDebugKotlin` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitions*Release`、`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 12:44:52） | 安装阶段出现 incremental install not allowed，已自动回退 streamed install 并成功；等待用户实机验收后决定是否标记 x |
+| 2026-03-05 01:27 | Step 1 | S1-FAV-02 | ~ | agent | 按用户要求重复执行 `docs/wsl-local-build-install.md` 构建安装流程：重跑 `prepareLibraryDefinitions*Release` 与 `assembleRelease -Prelease`，并重新安装 default universal release 包 | `prepareLibraryDefinitionsDefaultRelease/MarshmallowRelease` 成功，`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 14:26:56） | 安装时 incremental install 被拒后自动回退 streamed install 并成功 |
+| 2026-03-05 01:31 | Step 1 | S1-FAV-02 | x | agent | 用户确认 `S1-FAV-02 PASS`，本地收藏数据模型升级验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-FAV-03 |

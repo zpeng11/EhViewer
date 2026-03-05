@@ -126,3 +126,10 @@ class Schema20to21 : AutoMigrationSpec {
 // Virtual tables can't be altered, so we use rename to recreate it
 @RenameTable(fromTableName = "GalleryFts", toTableName = "GALLERIES_FTS")
 class Schema21to22 : AutoMigrationSpec
+
+class Schema23to24 : AutoMigrationSpec {
+    override fun onPostMigrate(connection: SQLiteConnection) {
+        connection.execSQL("DELETE FROM LOCAL_FAVORITE_FOLDERS WHERE SLOT < 1 OR SLOT > 9")
+        connection.execSQL("UPDATE LOCAL_FAVORITES SET EXTRA_FAVORITE_SLOT = NULL WHERE EXTRA_FAVORITE_SLOT < 1 OR EXTRA_FAVORITE_SLOT > 9")
+    }
+}
