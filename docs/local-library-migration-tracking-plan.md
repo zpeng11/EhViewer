@@ -128,6 +128,16 @@
   文件域：
   - `/home/eleven/EhViewer/app/src/main/AndroidManifest.xml`
 
+- [ ] `S1-FAV-01` 恢复原有收藏功能并本地化：仅保留本地收藏能力；在“下载项目->长按”选项中新增“加入收藏/移出收藏”入口并与本地收藏状态联动
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/DownloadsScreen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/main/DownloadCard.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/CommonOperations.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/util/FavouriteStatusRouter.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhDB.kt`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
+
 ### 任务清单（依赖域）
 - [ ] `S1-DEP-01` 移除不再需要的依赖并修复编译
   文件域：
@@ -155,6 +165,7 @@
 - [ ] `S1-ACC-07` 下载设置页仅保留本地浏览相关项，不再包含下载配置、恢复下载、冗余清理功能。
 - [ ] `S1-ACC-08` Reader 长按菜单不再出现“刷新/查看原图”；`EhPageLoader` 路径仅出现“重试本地加载/隐藏”。
 - [ ] `S1-ACC-09` `EhPageLoader` 阅读流程在断网/飞行模式下不触发远端资源 fetch（以请求日志或抓包为准）。
+- [ ] `S1-ACC-10` 收藏功能仅使用本地能力：Downloads 项长按可执行“加入收藏/移出收藏”，状态实时联动且断网/飞行模式下可用，不触发远端收藏请求。
 
 ---
 
