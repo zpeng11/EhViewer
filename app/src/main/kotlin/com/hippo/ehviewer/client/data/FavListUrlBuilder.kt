@@ -29,8 +29,11 @@ data class FavListUrlBuilder(
     private var prev: String? = null,
     private var next: String? = null,
 ) {
+    val localExtraSlot
+        get() = favCat.takeIf { it in LOCAL_EXTRA_SLOT_RANGE }
+
     val isLocal
-        get() = favCat == FAV_CAT_LOCAL
+        get() = favCat == FAV_CAT_LOCAL || localExtraSlot != null
 
     fun setIndex(index: String?, isNext: Boolean) {
         next = index.takeIf { isNext }
@@ -52,6 +55,7 @@ data class FavListUrlBuilder(
     companion object {
         const val FAV_CAT_ALL = -1
         const val FAV_CAT_LOCAL = -2
-        fun isValidFavCat(favCat: Int) = favCat in 0..9
+        val LOCAL_EXTRA_SLOT_RANGE = 1..9
+        fun isValidFavCat(favCat: Int) = favCat in LOCAL_EXTRA_SLOT_RANGE
     }
 }

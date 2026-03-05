@@ -233,6 +233,13 @@ object EhDB {
     val localFavCount: Flow<Int>
         get() = db.localFavoritesDao().count()
 
+    fun localFavCount(slot: Int): Flow<Int> {
+        require(slot in LocalFavoriteFolder.VALID_SLOT_RANGE) {
+            "slot should be in ${LocalFavoriteFolder.VALID_SLOT_RANGE}"
+        }
+        return db.localFavoritesDao().countInExtraSlot(slot)
+    }
+
     val localFavoriteFolderCount: Flow<Int>
         get() = db.localFavoriteFolderDao().count()
 

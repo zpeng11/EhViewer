@@ -4,7 +4,9 @@ import android.content.Context
 import android.view.ViewConfiguration
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.height
@@ -16,7 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material.icons.filled.Refresh
@@ -38,8 +43,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -51,6 +58,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.BaseGalleryInfo
 import com.ehviewer.core.ui.component.FAB_ANIMATE_TIME
@@ -70,10 +78,16 @@ import com.hippo.ehviewer.client.data.FavListUrlBuilder
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
+import com.hippo.ehviewer.ui.createLocalFavoriteFolder
+import com.hippo.ehviewer.ui.deleteLocalFavoriteFolder
 import com.hippo.ehviewer.ui.main.GalleryInfoGridItem
 import com.hippo.ehviewer.ui.main.GalleryInfoListItem
 import com.hippo.ehviewer.ui.main.GalleryList
 import com.hippo.ehviewer.ui.removeFromFavorites
+import com.hippo.ehviewer.ui.renameLocalFavoriteFolder
+import com.hippo.ehviewer.ui.tools.DialogState
+import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
+import com.hippo.ehviewer.ui.tools.awaitInputText
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -81,12 +95,20 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import moe.tarsin.coroutines.runSwallowingWithUI
 import moe.tarsin.navigate
+import moe.tarsin.tip
+import splitties.init.appCtx
 
 @Destination<RootGraph>
 @Composable
 fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, viewModel: FavoritesViewModel = viewModel()) = Screen(navigator) {
     // Immutables
     val localFavName = stringResource(R.string.local_favorites)
+    val collectionsTitle = stringResource(R.string.collections)
+    val createFolderTitle = stringResource(R.string.create_favorite_folder_title)
+    val renameFolderTitle = stringResource(R.string.rename_favorite_folder_title)
+    val folderNameHint = stringResource(R.string.favorite_folder_name_hint)
+    val folderLimitReached = stringResource(R.string.favorite_folder_limit_reached)
+    val labelEmpty = stringResource(R.string.label_text_is_empty)
     val animateItems by Settings.animateItems.collectAsState()
     var listMode by Settings.listMode.asMutableState()
 
@@ -97,9 +119,14 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     var fabExpanded by remember { mutableStateOf(false) }
     var fabHidden by remember { mutableStateOf(false) }
 
+    val dialogState by rememberUpdatedState(contextOf<DialogState>())
+    val localFavoriteFolders by viewModel.localFavoriteFolders.collectAsState(emptyList())
+
     // Derived State
     val keyword = urlBuilder.keyword
-    val favCatName = localFavName
+    val selectedExtraSlot = urlBuilder.localExtraSlot
+    val selectedFolder = localFavoriteFolders.firstOrNull { it.slot == selectedExtraSlot }
+    val favCatName = selectedFolder?.name ?: localFavName
     val title = if (keyword.isNullOrBlank()) {
         stringResource(R.string.favorites_title, favCatName)
     } else {
@@ -114,36 +141,122 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         data.refresh()
     }
 
-    LaunchedEffect(urlBuilder.favCat) {
-        if (!urlBuilder.isLocal) {
-            refresh(FavListUrlBuilder(FavListUrlBuilder.FAV_CAT_LOCAL, keyword = keyword))
-            Settings.recentFavCat = FavListUrlBuilder.FAV_CAT_LOCAL
+    fun openLocalFolder(slot: Int? = null) {
+        val favCat = slot ?: FavListUrlBuilder.FAV_CAT_LOCAL
+        refresh(FavListUrlBuilder(favCat = favCat, keyword = keyword))
+        Settings.recentFavCat = favCat
+        fabHidden = false
+    }
+
+    LaunchedEffect(urlBuilder.favCat, localFavoriteFolders) {
+        if (!urlBuilder.isLocal || (selectedExtraSlot != null && selectedFolder == null)) {
+            openLocalFolder()
         }
     }
 
     ProvideSideSheetContent { sheetState ->
         val localFavCount by viewModel.localFavCount.collectAsState(0)
+
+        suspend fun promptCreateExtraFolder() {
+            val name = with(dialogState) {
+                awaitInputText(title = createFolderTitle, hint = folderNameHint) { text ->
+                    if (text.isBlank()) {
+                        raise(labelEmpty)
+                    }
+                }
+            }
+            val created = createLocalFavoriteFolder(name)
+            if (created == null) {
+                tip(folderLimitReached)
+                return
+            }
+            openLocalFolder(created.slot)
+            sheetState.close()
+        }
+
+        suspend fun promptRenameExtraFolder(folder: LocalFavoriteFolder) {
+            val updatedName = with(dialogState) {
+                awaitInputText(
+                    initial = folder.name,
+                    title = renameFolderTitle,
+                    hint = folderNameHint,
+                ) { text ->
+                    if (text.isBlank()) {
+                        raise(labelEmpty)
+                    }
+                }
+            }
+            renameLocalFavoriteFolder(folder.slot, updatedName)
+        }
+
+        suspend fun promptDeleteExtraFolder(folder: LocalFavoriteFolder) {
+            with(dialogState) {
+                awaitConfirmationOrCancel(confirmText = R.string.delete) {
+                    Text(text = appCtx.getString(R.string.delete_favorite_folder, folder.name))
+                }
+            }
+            val deleted = deleteLocalFavoriteFolder(folder.slot)
+            if (deleted && urlBuilder.favCat == folder.slot) {
+                openLocalFolder()
+            }
+        }
+
         TopAppBar(
-            title = { Text(text = stringResource(id = R.string.collections)) },
+            title = { Text(text = collectionsTitle) },
             windowInsets = WindowInsets(),
             colors = topBarOnDrawerColor(),
+            actions = {
+                IconButton(onClick = { launch { dialogState.runCatching { promptCreateExtraFolder() } } }, shapes = IconButtonDefaults.shapes()) {
+                    Icon(imageVector = Icons.Default.CreateNewFolder, contentDescription = null)
+                }
+            },
         )
-        val faves = arrayOf(stringResource(id = R.string.local_favorites) to localFavCount)
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 4.dp)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom)),
         ) {
-            faves.forEach { (name, count) ->
+            ListItem(
+                headlineContent = { Text(text = localFavName) },
+                trailingContent = { Text(text = localFavCount.toString(), style = MaterialTheme.typography.bodyLarge) },
+                modifier = Modifier.clip(CardDefaults.shape).clickable {
+                    openLocalFolder()
+                    launch { sheetState.close() }
+                },
+                colors = listItemOnDrawerColor(urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL),
+            )
+            localFavoriteFolders.forEach { folder ->
+                val folderCount by remember(folder.slot) { viewModel.extraFavCount(folder.slot) }.collectAsState(0)
                 ListItem(
-                    headlineContent = { Text(text = name) },
-                    trailingContent = { Text(text = count.toString(), style = MaterialTheme.typography.bodyLarge) },
+                    headlineContent = { Text(text = "[${folder.slot}] ${folder.name}") },
+                    trailingContent = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(text = folderCount.toString(), style = MaterialTheme.typography.bodyLarge)
+                            IconButton(
+                                onClick = {
+                                    launch { dialogState.runCatching { promptRenameExtraFolder(folder) } }
+                                },
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(imageVector = Icons.Default.Edit, contentDescription = null)
+                            }
+                            IconButton(
+                                onClick = {
+                                    launch { dialogState.runCatching { promptDeleteExtraFolder(folder) } }
+                                },
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(imageVector = Icons.Default.Delete, contentDescription = null)
+                            }
+                        }
+                    },
                     modifier = Modifier.clip(CardDefaults.shape).clickable {
-                        refresh(FavListUrlBuilder(FavListUrlBuilder.FAV_CAT_LOCAL))
-                        Settings.recentFavCat = FavListUrlBuilder.FAV_CAT_LOCAL
-                        fabHidden = false
+                        openLocalFolder(folder.slot)
                         launch { sheetState.close() }
                     },
-                    colors = listItemOnDrawerColor(urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL),
+                    colors = listItemOnDrawerColor(urlBuilder.favCat == folder.slot),
                 )
             }
         }

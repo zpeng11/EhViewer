@@ -153,7 +153,7 @@
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/util/FavouriteStatusRouter.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhApplication.kt`
 
-- [ ] `S1-FAV-04` 收藏页侧栏重构为“收藏夹入口 + 管理入口”：支持浏览本地收藏夹与额外收藏夹，支持创建/删除/重命名额外收藏夹并显示各夹计数
+- [x] `S1-FAV-04` 收藏页侧栏重构为“收藏夹入口 + 管理入口”：支持浏览本地收藏夹与额外收藏夹，支持创建/删除/重命名额外收藏夹并显示各夹计数
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesViewModel.kt`
@@ -405,3 +405,6 @@
 | 2026-03-05 01:31 | Step 1 | S1-FAV-03 | ~ | agent | 启动收藏仓储与语义扩展：实现额外收藏夹创建/删除/重命名、批量分配与回归默认收藏夹 API，并统一收藏状态通知路由 | 进行中 | 本步先落地 `EhDB + CommonOperations + FavouriteStatusRouter + EhApplication`，UI 侧栏与多选动作在后续任务实现 |
 | 2026-03-05 01:38 | Step 1 | S1-FAV-03 | ~ | agent | 完成本地收藏仓储与操作语义扩展：`EhDB` 新增额外收藏夹创建/删除/重命名、批量分配到额外夹/回归默认夹、统一本地收藏状态查询 API；`CommonOperations` 新增同名业务入口并统一通过 `FavouriteStatusRouter` 广播；`FavouriteStatusRouter` 统一为 `FavoriteStatusChange` 事件并支持 gid/gids 级批量通知；`EhApplication` 细节页缓存同步改为消费统一事件 | `:app:compileDefaultDebugKotlin` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitions*Release`、`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 14:37:48） | 安装阶段 incremental install 被拒后自动回退 streamed install 并成功；等待用户实机验收后决定是否标记 x |
 | 2026-03-05 01:46 | Step 1 | S1-FAV-03 | x | agent | 用户确认 `S1-FAV-03 PASS`，收藏仓储与操作语义扩展验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-FAV-04 |
+| 2026-03-05 01:46 | Step 1 | S1-FAV-04 | ~ | agent | 启动收藏页侧栏重构：在 Favorites 侧栏引入“本地收藏 + 额外收藏夹 + 管理动作”结构，支持额外收藏夹进入/创建/删除/重命名与计数展示 | 进行中 | 本步聚焦 `FavoritesScreen/FavoritesViewModel/FavListUrlBuilder` 与 i18n 文案，暂不实现条目徽标与多选移动动作 |
+| 2026-03-05 01:53 | Step 1 | S1-FAV-04 | ~ | agent | 完成收藏页侧栏重构实现：`FavoritesScreen` 增加“本地收藏 + 额外收藏夹(1..9)”入口与计数展示，并支持创建/重命名/删除额外收藏夹；`FavoritesViewModel` 改为纯本地多收藏夹数据源；`FavListUrlBuilder` 增加本地额外收藏夹识别；补充中英文管理文案 | `:app:compileDefaultDebugKotlin` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitions*Release`、`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 14:53:05） | 安装时 incremental install 被拒后自动回退 streamed install 并成功；等待用户实机验收后决定是否标记 x |
+| 2026-03-05 01:58 | Step 1 | S1-FAV-04 | x | agent | 用户确认 `S1-FAV-04 PASS`，收藏页侧栏重构验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-FAV-05 |

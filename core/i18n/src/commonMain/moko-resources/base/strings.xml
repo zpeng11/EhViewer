@@ -401,6 +401,11 @@
     <string name="let_me_select">Let me select</string>
     <string name="favorite_note">Favorite Note</string>
     <string name="collections">Collections</string>
+    <string name="create_favorite_folder_title">New extra collection</string>
+    <string name="rename_favorite_folder_title">Rename extra collection</string>
+    <string name="favorite_folder_name_hint">Collection name</string>
+    <string name="favorite_folder_limit_reached">You can create up to 9 extra collections</string>
+    <string name="delete_favorite_folder">Delete collection \"%s\"?</string>
     <!-- Progress Scene -->
     <string name="error_something_wrong_happened">Something wrong happened</string>
     <!-- Guide -->

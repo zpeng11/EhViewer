@@ -383,6 +383,11 @@
     <string name="let_me_select">让我选择</string>
     <string name="favorite_note">收藏备注</string>
     <string name="collections">收藏夹</string>
+    <string name="create_favorite_folder_title">新建额外收藏夹</string>
+    <string name="rename_favorite_folder_title">重命名额外收藏夹</string>
+    <string name="favorite_folder_name_hint">收藏夹名称</string>
+    <string name="favorite_folder_limit_reached">最多只能创建 9 个额外收藏夹</string>
+    <string name="delete_favorite_folder">删除收藏夹“%s”？</string>
     <!-- Progress Scene -->
     <string name="error_something_wrong_happened">被玩坏了</string>
     <!-- Guide -->
