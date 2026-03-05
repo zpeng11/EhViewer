@@ -111,11 +111,11 @@ class EhApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         System.loadLibrary("ehviewer")
         launch {
-            FavouriteStatusRouter.collect { info ->
-                detailCache[info.gid]?.apply {
-                    favoriteSlot = info.favoriteSlot
-                    favoriteName = info.favoriteName
-                    favoriteNote = info.favoriteNote
+            FavouriteStatusRouter.collect { change ->
+                detailCache[change.gid]?.apply {
+                    favoriteSlot = change.favoriteSlot
+                    favoriteName = change.favoriteName
+                    favoriteNote = change.favoriteNote
                 }
             }
         }

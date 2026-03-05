@@ -35,43 +35,60 @@ import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 
 object FavouriteStatusRouter {
+    data class FavoriteStatusChange(
+        val gid: Long,
+        val favoriteSlot: Int,
+        val favoriteName: String?,
+        val favoriteNote: String?,
+    )
+
     suspend fun notify(galleryInfo: GalleryInfo) {
-        globalFlow.emit(galleryInfo)
+        notify(galleryInfo.gid, galleryInfo.favoriteSlot, galleryInfo.favoriteName, galleryInfo.favoriteNote)
+    }
+
+    suspend fun notify(gid: Long, favoriteSlot: Int, favoriteName: String?, favoriteNote: String? = null) {
+        globalFlow.emit(FavoriteStatusChange(gid, favoriteSlot, favoriteName, favoriteNote))
+    }
+
+    suspend fun notify(gids: LongArray, favoriteSlot: Int, favoriteName: String?, favoriteNote: String? = null) {
+        gids.forEach { gid ->
+            notify(gid, favoriteSlot, favoriteName, favoriteNote)
+        }
     }
 
     private val listenerScope = CoroutineScope(Dispatchers.IO)
 
-    val globalFlow = MutableSharedFlow<GalleryInfo>(extraBufferCapacity = 1).apply {
+    val globalFlow = MutableSharedFlow<FavoriteStatusChange>(extraBufferCapacity = 16).apply {
         listenerScope.launch {
-            collect { info ->
-                EhDB.updateFavoriteSlot(info.gid, info.favoriteSlot, info.favoriteName, info.favoriteNote)
-                DownloadManager.getDownloadInfo(info.gid)?.apply {
-                    favoriteSlot = info.favoriteSlot
-                    favoriteName = info.favoriteName
-                    favoriteNote = info.favoriteNote
+            collect { change ->
+                EhDB.updateFavoriteSlot(change.gid, change.favoriteSlot, change.favoriteName, change.favoriteNote)
+                DownloadManager.getDownloadInfo(change.gid)?.apply {
+                    favoriteSlot = change.favoriteSlot
+                    favoriteName = change.favoriteName
+                    favoriteNote = change.favoriteNote
                 }
             }
         }
     }
 
-    suspend fun collect(collector: FlowCollector<GalleryInfo>): Nothing = globalFlow.collect(collector)
+    suspend fun collect(collector: FlowCollector<FavoriteStatusChange>): Nothing = globalFlow.collect(collector)
 
     @Stable
     @Composable
     inline fun <R> collectAsState(initial: GalleryInfo, crossinline transform: @DisallowComposableCalls (Int) -> R) = remember {
-        globalFlow.transform { info -> if (initial.gid == info.gid) emit(transform(info.favoriteSlot)) }
+        globalFlow.transform { change -> if (initial.gid == change.gid) emit(transform(change.favoriteSlot)) }
     }.collectAsState(transform(initial.favoriteSlot))
 
     @Composable
     fun Observe(list: LazyPagingItems<out GalleryInfo>) {
         val realList by rememberUpdatedStateInVM(newValue = list.itemSnapshotList.items)
         launchInVM {
-            collect { info ->
+            collect { change ->
                 realList.forEach { item ->
-                    if (item.gid == info.gid) {
-                        item.favoriteSlot = info.favoriteSlot
-                        item.favoriteName = info.favoriteName
-                        item.favoriteNote = info.favoriteNote
+                    if (item.gid == change.gid) {
+                        item.favoriteSlot = change.favoriteSlot
+                        item.favoriteName = change.favoriteName
+                        item.favoriteNote = change.favoriteNote
                     }
                 }
             }

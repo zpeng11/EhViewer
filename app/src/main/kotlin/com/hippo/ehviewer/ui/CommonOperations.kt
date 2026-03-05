@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ehviewer.core.database.model.DownloadInfo
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.exists
 import com.ehviewer.core.files.isDirectory
@@ -177,8 +178,8 @@ suspend fun addToFavorites(galleryInfo: GalleryInfo): Boolean = updateLocalFavor
 
 context(_: DialogState)
 suspend fun modifyFavorites(galleryInfo: GalleryInfo): Boolean {
-    val isFavorited = EhDB.containLocalFavorites(galleryInfo.gid)
-    return updateLocalFavorite(galleryInfo, !isFavorited)
+    val status = EhDB.getLocalFavoriteStatus(galleryInfo.gid)
+    return updateLocalFavorite(galleryInfo, status is EhDB.FavoriteStatus.NotFavorited)
 }
 
 private suspend fun updateLocalFavorite(galleryInfo: GalleryInfo, favorited: Boolean): Boolean = with(galleryInfo) {
@@ -197,6 +198,55 @@ private suspend fun updateLocalFavorite(galleryInfo: GalleryInfo, favorited: Boo
 }
 
 suspend fun removeFromFavorites(galleryInfo: GalleryInfo) = updateLocalFavorite(galleryInfo, false)
+
+suspend fun createLocalFavoriteFolder(name: String): LocalFavoriteFolder? = EhDB.createLocalFavoriteFolder(name)
+
+suspend fun renameLocalFavoriteFolder(slot: Int, name: String): Boolean {
+    val result = EhDB.renameLocalFavoriteFolder(slot, name) ?: return false
+    FavouriteStatusRouter.notify(
+        gids = result.affectedGids,
+        favoriteSlot = result.folder.slot,
+        favoriteName = result.folder.name,
+    )
+    return true
+}
+
+suspend fun deleteLocalFavoriteFolder(slot: Int): Boolean {
+    val affectedGids = EhDB.deleteLocalFavoriteFolder(slot) ?: return false
+    FavouriteStatusRouter.notify(
+        gids = affectedGids,
+        favoriteSlot = LOCAL_FAVORITED,
+        favoriteName = appCtx.getString(R.string.local_favorites),
+    )
+    return true
+}
+
+suspend fun moveLocalFavoritesToExtraFolder(gids: LongArray, slot: Int): Int {
+    val folder = EhDB.getLocalFavoriteFolder(slot) ?: return 0
+    val updatedGids = EhDB.moveLocalFavoritesToExtraFolder(gids, slot)
+    FavouriteStatusRouter.notify(
+        gids = updatedGids,
+        favoriteSlot = slot,
+        favoriteName = folder.name,
+    )
+    return updatedGids.size
+}
+
+suspend fun moveLocalFavoritesToExtraFolder(galleryInfoList: Collection<GalleryInfo>, slot: Int): Int =
+    moveLocalFavoritesToExtraFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid), slot)
+
+suspend fun moveLocalFavoritesToDefaultFolder(gids: LongArray): Int {
+    val updatedGids = EhDB.moveLocalFavoritesToDefaultFolder(gids)
+    FavouriteStatusRouter.notify(
+        gids = updatedGids,
+        favoriteSlot = LOCAL_FAVORITED,
+        favoriteName = appCtx.getString(R.string.local_favorites),
+    )
+    return updatedGids.size
+}
+
+suspend fun moveLocalFavoritesToDefaultFolder(galleryInfoList: Collection<GalleryInfo>): Int =
+    moveLocalFavoritesToDefaultFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid))
 
 context(_: DestinationsNavigator)
 fun navToReader(info: BaseGalleryInfo, page: Int = -1) = navToReader(ReaderScreenArgs.Gallery(info, page))

@@ -30,22 +30,31 @@ import com.ehviewer.core.database.model.DownloadLabel
 import com.ehviewer.core.database.model.Filter
 import com.ehviewer.core.database.model.GalleryEntity
 import com.ehviewer.core.database.model.HistoryInfo
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.database.model.LocalFavoriteInfo
 import com.ehviewer.core.database.model.ProgressInfo
 import com.ehviewer.core.database.model.QuickSearch
 import com.ehviewer.core.database.roomDb
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.sendTo
+import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.GalleryInfo
 import com.hippo.ehviewer.download.DownloadManager
 import kotlinx.coroutines.flow.Flow
 import okio.Path
+import splitties.init.appCtx
 
 object EhDB {
     private const val DB_NAME = "eh.db"
     private val db = roomDb<EhDatabase>(DB_NAME) {
         addMigrations(Schema17to18())
     }
+    private val localFavoriteName by lazy { appCtx.getString(R.string.local_favorites) }
+
+    data class LocalFavoriteFolderRenameResult(
+        val folder: LocalFavoriteFolder,
+        val affectedGids: LongArray,
+    )
 
     suspend fun putGalleryInfo(galleryInfo: GalleryEntity) {
         db.galleryDao().upsert(galleryInfo)
@@ -224,7 +233,17 @@ object EhDB {
     val localFavCount: Flow<Int>
         get() = db.localFavoritesDao().count()
 
+    val localFavoriteFolderCount: Flow<Int>
+        get() = db.localFavoriteFolderDao().count()
+
+    val localFavoriteFolders
+        get() = db.localFavoriteFolderDao().listFlow()
+
     fun searchLocalFav(keyword: String) = db.localFavoritesDao().joinListLazy("*$keyword*")
+
+    fun localFavLazyList(extraSlot: Int) = db.localFavoritesDao().joinListByExtraSlotLazy(extraSlot)
+
+    fun searchLocalFav(extraSlot: Int, keyword: String) = db.localFavoritesDao().joinListByExtraSlotLazy(extraSlot, "*$keyword*")
 
     suspend fun putHistoryInfo(galleryInfo: GalleryInfo) {
         putGalleryInfo(galleryInfo.asEntity())
@@ -239,6 +258,96 @@ object EhDB {
             it.favoriteNote = note
             dao.update(it)
         }
+    }
+
+    suspend fun getLocalFavoriteFolder(slot: Int): LocalFavoriteFolder? {
+        require(slot in LocalFavoriteFolder.VALID_SLOT_RANGE) {
+            "slot should be in ${LocalFavoriteFolder.VALID_SLOT_RANGE}"
+        }
+        return db.localFavoriteFolderDao().load(slot)
+    }
+
+    suspend fun createLocalFavoriteFolder(name: String): LocalFavoriteFolder? {
+        val normalizedName = name.trim()
+        require(normalizedName.isNotEmpty()) { "name should not be blank" }
+        val dao = db.localFavoriteFolderDao()
+        val usedSlots = dao.list().mapTo(mutableSetOf()) { it.slot }
+        val availableSlot = LocalFavoriteFolder.VALID_SLOT_RANGE.firstOrNull { it !in usedSlots } ?: return null
+        val folder = LocalFavoriteFolder(slot = availableSlot, name = normalizedName)
+        dao.upsert(folder)
+        return folder
+    }
+
+    suspend fun renameLocalFavoriteFolder(slot: Int, name: String): LocalFavoriteFolderRenameResult? {
+        require(slot in LocalFavoriteFolder.VALID_SLOT_RANGE) {
+            "slot should be in ${LocalFavoriteFolder.VALID_SLOT_RANGE}"
+        }
+        val normalizedName = name.trim()
+        require(normalizedName.isNotEmpty()) { "name should not be blank" }
+        val folderDao = db.localFavoriteFolderDao()
+        val original = folderDao.load(slot) ?: return null
+        val updated = LocalFavoriteFolder(slot = original.slot, name = normalizedName)
+        folderDao.upsert(updated)
+        val gids = db.localFavoritesDao().listGidsInExtraSlot(slot).toLongArray()
+        return LocalFavoriteFolderRenameResult(updated, gids)
+    }
+
+    suspend fun deleteLocalFavoriteFolder(slot: Int): LongArray? {
+        require(slot in LocalFavoriteFolder.VALID_SLOT_RANGE) {
+            "slot should be in ${LocalFavoriteFolder.VALID_SLOT_RANGE}"
+        }
+        val folderDao = db.localFavoriteFolderDao()
+        folderDao.load(slot) ?: return null
+        val localFavoritesDao = db.localFavoritesDao()
+        val gids = localFavoritesDao.listGidsInExtraSlot(slot).toLongArray()
+        localFavoritesDao.clearExtraSlot(slot)
+        folderDao.deleteBySlot(slot)
+        return gids
+    }
+
+    suspend fun moveLocalFavoritesToExtraFolder(gids: LongArray, slot: Int): LongArray {
+        require(slot in LocalFavoriteFolder.VALID_SLOT_RANGE) {
+            "slot should be in ${LocalFavoriteFolder.VALID_SLOT_RANGE}"
+        }
+        if (gids.isEmpty()) return LongArray(0)
+        checkNotNull(db.localFavoriteFolderDao().load(slot)) { "Folder $slot does not exist" }
+        val dao = db.localFavoritesDao()
+        val existingGids = dao.listExistingGids(gids).toLongArray()
+        if (existingGids.isEmpty()) return existingGids
+        dao.updateExtraSlot(existingGids, slot)
+        return existingGids
+    }
+
+    suspend fun moveLocalFavoritesToDefaultFolder(gids: LongArray): LongArray {
+        if (gids.isEmpty()) return LongArray(0)
+        val dao = db.localFavoritesDao()
+        val existingGids = dao.listExistingGids(gids).toLongArray()
+        if (existingGids.isEmpty()) return existingGids
+        dao.updateExtraSlot(existingGids, null)
+        return existingGids
+    }
+
+    suspend fun getLocalFavoriteStatus(gid: Long): FavoriteStatus {
+        val localFavoritesDao = db.localFavoritesDao()
+        val isLocal = localFavoritesDao.contains(gid)
+        if (!isLocal) return FavoriteStatus.NotFavorited
+        val extraSlot = localFavoritesDao.getExtraSlot(gid)
+        if (extraSlot == null) {
+            return FavoriteStatus.LocalDefault
+        }
+        val name = db.localFavoriteFolderDao().load(extraSlot)?.name ?: localFavoriteName
+        return FavoriteStatus.LocalExtra(extraSlot, name)
+    }
+
+    sealed interface FavoriteStatus {
+        data object NotFavorited : FavoriteStatus
+
+        data object LocalDefault : FavoriteStatus
+
+        data class LocalExtra(
+            val slot: Int,
+            val name: String,
+        ) : FavoriteStatus
     }
 
     private suspend fun importHistoryInfo(historyInfoList: List<HistoryInfo>) {

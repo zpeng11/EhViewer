@@ -46,6 +46,12 @@ interface LocalFavoritesDao {
     @Query("SELECT EXISTS(SELECT * FROM LOCAL_FAVORITES WHERE GID = :gid)")
     suspend fun contains(gid: Long): Boolean
 
+    @Query("SELECT GID FROM LOCAL_FAVORITES WHERE GID IN (:gids)")
+    suspend fun listExistingGids(gids: LongArray): List<Long>
+
+    @Query("SELECT GID FROM LOCAL_FAVORITES WHERE EXTRA_FAVORITE_SLOT = :slot")
+    suspend fun listGidsInExtraSlot(slot: Int): List<Long>
+
     @Query("SELECT EXTRA_FAVORITE_SLOT FROM LOCAL_FAVORITES WHERE GID = :gid")
     suspend fun getExtraSlot(gid: Long): Int?
 

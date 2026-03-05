@@ -146,7 +146,7 @@
   - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/DatabaseMigrations.kt`
   - `/home/eleven/EhViewer/core/data/schemas/com.ehviewer.core.database.EhDatabase/**`
 
-- [ ] `S1-FAV-03` 收藏仓储与操作语义扩展：新增创建/删除/重命名额外收藏夹、批量分配到额外收藏夹、批量回归默认收藏夹的本地 API，并统一收藏状态路由
+- [x] `S1-FAV-03` 收藏仓储与操作语义扩展：新增创建/删除/重命名额外收藏夹、批量分配到额外收藏夹、批量回归默认收藏夹的本地 API，并统一收藏状态路由
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhDB.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/CommonOperations.kt`
@@ -402,3 +402,6 @@
 | 2026-03-04 23:45 | Step 1 | S1-FAV-02 | ~ | agent | 完成 `core/data` 模型升级：新增 `LOCAL_FAVORITE_FOLDERS` 实体/DAO；`LOCAL_FAVORITES` 新增 `EXTRA_FAVORITE_SLOT`（可空）并扩展查询/更新接口；数据库版本升级到 24，新增 `Schema23to24` 清洗越界 slot | `:app:compileDefaultDebugKotlin` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitions*Release`、`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 12:44:52） | 安装阶段出现 incremental install not allowed，已自动回退 streamed install 并成功；等待用户实机验收后决定是否标记 x |
 | 2026-03-05 01:27 | Step 1 | S1-FAV-02 | ~ | agent | 按用户要求重复执行 `docs/wsl-local-build-install.md` 构建安装流程：重跑 `prepareLibraryDefinitions*Release` 与 `assembleRelease -Prelease`，并重新安装 default universal release 包 | `prepareLibraryDefinitionsDefaultRelease/MarshmallowRelease` 成功，`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 14:26:56） | 安装时 incremental install 被拒后自动回退 streamed install 并成功 |
 | 2026-03-05 01:31 | Step 1 | S1-FAV-02 | x | agent | 用户确认 `S1-FAV-02 PASS`，本地收藏数据模型升级验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-FAV-03 |
+| 2026-03-05 01:31 | Step 1 | S1-FAV-03 | ~ | agent | 启动收藏仓储与语义扩展：实现额外收藏夹创建/删除/重命名、批量分配与回归默认收藏夹 API，并统一收藏状态通知路由 | 进行中 | 本步先落地 `EhDB + CommonOperations + FavouriteStatusRouter + EhApplication`，UI 侧栏与多选动作在后续任务实现 |
+| 2026-03-05 01:38 | Step 1 | S1-FAV-03 | ~ | agent | 完成本地收藏仓储与操作语义扩展：`EhDB` 新增额外收藏夹创建/删除/重命名、批量分配到额外夹/回归默认夹、统一本地收藏状态查询 API；`CommonOperations` 新增同名业务入口并统一通过 `FavouriteStatusRouter` 广播；`FavouriteStatusRouter` 统一为 `FavoriteStatusChange` 事件并支持 gid/gids 级批量通知；`EhApplication` 细节页缓存同步改为消费统一事件 | `:app:compileDefaultDebugKotlin` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitions*Release`、`assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-05 14:37:48） | 安装阶段 incremental install 被拒后自动回退 streamed install 并成功；等待用户实机验收后决定是否标记 x |
+| 2026-03-05 01:46 | Step 1 | S1-FAV-03 | x | agent | 用户确认 `S1-FAV-03 PASS`，收藏仓储与操作语义扩展验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-FAV-04 |
