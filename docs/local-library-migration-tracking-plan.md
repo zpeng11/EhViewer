@@ -138,6 +138,50 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
+- [ ] `S1-FAV-02` 本地收藏数据模型升级：引入“额外收藏夹定义 + 额外归属”结构，保证单条收藏最多归属一个额外收藏夹，且额外收藏夹 ID 限定 1..9
+  文件域：
+  - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/model/**`
+  - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/dao/**`
+  - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/Database.kt`
+  - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/DatabaseMigrations.kt`
+  - `/home/eleven/EhViewer/core/data/schemas/com.ehviewer.core.database.EhDatabase/**`
+
+- [ ] `S1-FAV-03` 收藏仓储与操作语义扩展：新增创建/删除/重命名额外收藏夹、批量分配到额外收藏夹、批量回归默认收藏夹的本地 API，并统一收藏状态路由
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhDB.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/CommonOperations.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/util/FavouriteStatusRouter.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhApplication.kt`
+
+- [ ] `S1-FAV-04` 收藏页侧栏重构为“收藏夹入口 + 管理入口”：支持浏览本地收藏夹与额外收藏夹，支持创建/删除/重命名额外收藏夹并显示各夹计数
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesScreen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesViewModel.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/client/data/FavListUrlBuilder.kt`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
+
+- [ ] `S1-FAV-05` 收藏项可视化增强：在“本地收藏夹”视图中，对已归属额外收藏夹的条目展示额外收藏夹代号（1-9）徽标，帮助用户定位目标夹
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/main/GalleryInfo.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/main/GalleryInfoListItem.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/main/GalleryInfoGridItem.kt`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
+
+- [ ] `S1-FAV-06` 收藏页多选动作扩展：在所有收藏夹页面的多选工具栏新增爱心动作，支持“移动到指定额外收藏夹（1-9）”或“全部回归默认收藏夹（仅本地）”
+  文件域：
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesScreen.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/CommonOperations.kt`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
+  - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
+
+- [ ] `S1-FAV-07` 兼容与迁移策略：老版本本地收藏平滑迁移为“仅本地收藏、无额外归属”，删除额外收藏夹时成员自动回归默认收藏夹
+  文件域：
+  - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/DatabaseMigrations.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhDB.kt`
+  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesViewModel.kt`
+
 ### 任务清单（依赖域）
 - [ ] `S1-DEP-01` 移除不再需要的依赖并修复编译
   文件域：
@@ -166,6 +210,13 @@
 - [ ] `S1-ACC-08` Reader 长按菜单不再出现“刷新/查看原图”；`EhPageLoader` 路径仅出现“重试本地加载/隐藏”。
 - [ ] `S1-ACC-09` `EhPageLoader` 阅读流程在断网/飞行模式下不触发远端资源 fetch（以请求日志或抓包为准）。
 - [ ] `S1-ACC-10` 收藏功能仅使用本地能力：Downloads 项长按可执行“加入收藏/移出收藏”，状态实时联动且断网/飞行模式下可用，不触发远端收藏请求。
+- [ ] `S1-ACC-11` 额外收藏夹数量上限生效：最多可创建 9 个额外收藏夹，且逻辑代号稳定为 1..9。
+- [ ] `S1-ACC-12` 被收藏条目必定出现在本地收藏夹；若分配到额外收藏夹，则同时出现在本地收藏夹和目标额外收藏夹。
+- [ ] `S1-ACC-13` 单个收藏条目在任意时刻最多仅归属一个额外收藏夹，不允许同时出现在多个额外收藏夹。
+- [ ] `S1-ACC-14` 收藏页左拉侧栏可完成额外收藏夹的进入/创建/删除/重命名，计数展示正确。
+- [ ] `S1-ACC-15` 在本地收藏夹列表中，已归属额外收藏夹的条目显示对应代号（1-9）徽标，且代号与目标夹一致。
+- [ ] `S1-ACC-16` 在任意收藏夹页面，多选爱心动作可批量分配到目标额外收藏夹，或批量回归默认收藏夹，结果实时联动。
+- [ ] `S1-ACC-17` 删除额外收藏夹后，原归属条目自动回归默认收藏夹（本地收藏仍保留），断网/飞行模式下全流程可用且不触发远端请求。
 
 ---
 
