@@ -33,10 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.ui.component.CrystalCard
@@ -60,6 +63,7 @@ fun GalleryInfoListItem(
     showProgress: Boolean,
     modifier: Modifier = Modifier,
     isInFavScene: Boolean = false,
+    extraFavoriteSlotBadge: Int? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) = CrystalCard(
     modifier = modifier,
@@ -83,13 +87,22 @@ fun GalleryInfoListItem(
             )
             Spacer(modifier = Modifier.weight(1f))
             ProvideTextStyle(MaterialTheme.typography.labelLarge) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
                         text = info.uploader.orEmpty(),
                         modifier = Modifier.alignByBaseline().alpha(if (info.disowned) 0.5f else 1f),
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     if (isInFavScene) {
+                        extraFavoriteSlotBadge?.let {
+                            ExtraFavoriteSlotBadge(
+                                slot = it,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                            )
+                        }
                         info.favoriteNote?.let {
                             Text(text = it, modifier = Modifier.alignByBaseline(), fontStyle = FontStyle.Italic)
                         }
@@ -161,6 +174,8 @@ fun GalleryInfoGridItem(
     showPages: Boolean = true,
     showProgress: Boolean = true,
     showFavoriteStatus: Boolean = true,
+    showFavoriteSlotOverlay: Boolean = false,
+    extraFavoriteSlotBadge: Int? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) = ElevatedCard(
     modifier = modifier,
@@ -211,17 +226,57 @@ fun GalleryInfoGridItem(
                 Text(text = info.simpleLanguage.orEmpty())
             }
         }
+        extraFavoriteSlotBadge?.let {
+            ExtraFavoriteSlotBadge(
+                slot = it,
+                modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
+            )
+        }
         if (showFavoriteStatus) {
-            val isFavorited by FavouriteStatusRouter.collectAsState(info) { it != NOT_FAVORITED }
-            if (isFavorited) {
-                Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = null,
+            val favoriteSlot by FavouriteStatusRouter.collectAsState(info) { it }
+            if (favoriteSlot != NOT_FAVORITED) {
+                FavoriteStatusIcon(
+                    favoriteSlot = favoriteSlot.takeIf { showFavoriteSlotOverlay },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp),
-                    tint = EhUtils.favoriteIconColor,
                 )
             }
         }
+    }
+}
+
+@Composable
+internal fun FavoriteStatusIcon(
+    favoriteSlot: Int?,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.size(20.dp), contentAlignment = Alignment.Center) {
+        Icon(
+            imageVector = Icons.Default.Favorite,
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            tint = EhUtils.favoriteIconColor,
+        )
+        favoriteSlot?.takeIf { it in LocalFavoriteFolder.VALID_SLOT_RANGE }?.let {
+            Text(
+                text = it.toString(),
+                color = Color.White,
+                fontSize = 9.sp,
+                lineHeight = 9.sp,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExtraFavoriteSlotBadge(slot: Int, modifier: Modifier = Modifier) {
+    if (slot !in LocalFavoriteFolder.VALID_SLOT_RANGE) return
+    Badge(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(text = slot.toString())
     }
 }
 

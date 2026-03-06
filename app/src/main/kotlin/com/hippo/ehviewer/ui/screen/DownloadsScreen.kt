@@ -85,6 +85,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.TagNamespace
@@ -210,6 +211,7 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
     val labelExists = stringResource(R.string.label_text_exist)
     val downloadsCountGroupByArtist by rememberInVM { EhDB.downloadsCountByArtist }.collectAsState(emptyMap())
     val downloadsCountGroupByLabel by rememberInVM { EhDB.downloadsCountByLabel }.collectAsState(emptyMap())
+    val localFavoriteFolders by rememberInVM { EhDB.localFavoriteFolders }.collectAsState(emptyList())
     val downloadsCount = when (filterMode) {
         DownloadsFilterMode.CUSTOM -> downloadsCountGroupByLabel
         DownloadsFilterMode.ARTIST -> downloadsCountGroupByArtist
@@ -259,6 +261,37 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
             changed > 0 -> tip(if (favorited) R.string.add_to_favorite_success else R.string.remove_from_favorite_success)
         }
         checkedInfoMap.clear()
+    }
+
+    suspend fun selectExtraFavoriteFolder(): LocalFavoriteFolder? {
+        if (localFavoriteFolders.isEmpty()) {
+            tip(R.string.no_extra_favorite_folders)
+            return null
+        }
+        val selected = awaitSingleChoice(
+            items = localFavoriteFolders.map { "[${it.slot}] ${it.name}" },
+            selected = 0,
+            title = R.string.select_extra_favorite_folder,
+        )
+        return localFavoriteFolders.getOrNull(selected)
+    }
+
+    suspend fun addSelectionToExtraFavorites() {
+        val selectedInfo = checkedInfoMap.values.toList()
+        if (selectedInfo.isEmpty()) return
+        val folder = selectExtraFavoriteFolder() ?: return
+        runCatching {
+            addToFavorites(selectedInfo, folder.slot)
+        }.onSuccess { changed ->
+            if (changed > 0) {
+                tip(R.string.add_to_extra_favorite_success)
+                checkedInfoMap.clear()
+            } else {
+                tip(R.string.add_to_extra_favorite_failure)
+            }
+        }.onFailure {
+            tip(R.string.add_to_extra_favorite_failure)
+        }
     }
 
     LaunchedEffect(filterState) {
@@ -624,6 +657,7 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                                 info = info,
                                 showLanguage = false,
                                 showProgress = showProgress,
+                                showFavoriteSlotOverlay = true,
                                 interactionSource = interactionSource,
                             )
                         }
@@ -747,7 +781,11 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                 val info = list.associateBy { it.gid }
                 checkedInfoMap.putAll(info)
             }
-            onClick(Icons.Default.Favorite, autoClose = false) {
+            onClick(
+                Icons.Default.Favorite,
+                autoClose = false,
+                onLongClick = { addSelectionToExtraFavorites() },
+            ) {
                 updateFavoritesInSelection(true)
             }
             onClick(Icons.Default.HeartBroken, autoClose = false) {

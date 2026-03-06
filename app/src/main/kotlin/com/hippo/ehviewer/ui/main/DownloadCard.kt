@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ehviewer.core.database.model.DownloadInfo
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.ui.component.CrystalCard
 import com.ehviewer.core.ui.component.GalleryListCardRating
@@ -113,13 +114,11 @@ fun DownloadCard(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                val isFavorited by FavouriteStatusRouter.collectAsState(info) { it != NOT_FAVORITED }
+                val favoriteSlot by FavouriteStatusRouter.collectAsState(info) { it }
                 Column(modifier = Modifier.offset(4.dp).minimumInteractiveComponentSize()) {
-                    if (isFavorited) {
-                        Icon(
-                            imageVector = Icons.Default.Favorite,
-                            contentDescription = null,
-                            tint = EhUtils.favoriteIconColor,
+                    if (favoriteSlot != NOT_FAVORITED) {
+                        FavoriteStatusIcon(
+                            favoriteSlot = favoriteSlot.takeIf { it in LocalFavoriteFolder.VALID_SLOT_RANGE },
                         )
                     }
                     Icon(

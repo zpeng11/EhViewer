@@ -4,10 +4,13 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -17,7 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -26,10 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
@@ -94,7 +102,8 @@ class FabLayoutState(
 private val fabSyncSchedule = Schedule.linear<Throwable>(100.microseconds)
 
 fun interface FabBuilder {
-    fun onClick(icon: ImageVector, autoClose: Boolean, that: suspend () -> Unit)
+    fun onClick(icon: ImageVector, autoClose: Boolean, onLongClick: (suspend () -> Unit)?, that: suspend () -> Unit)
+    fun onClick(icon: ImageVector, autoClose: Boolean, that: suspend () -> Unit) = onClick(icon, autoClose, null, that)
     fun onClick(icon: ImageVector, that: suspend () -> Unit) = onClick(icon, true, that)
 }
 
@@ -164,27 +173,39 @@ fun FabLayout(
         modifier = Modifier.fillMaxSize().navigationBarsPadding().snackBarPadding(),
         contentAlignment = Alignment.BottomEnd,
     ) {
+        val hapticFeedback = LocalHapticFeedback.current
+        val indication = LocalIndication.current
         if (!state.appearProgress.isRunning && !updatedHidden) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer { alpha = animatedProgress },
                 contentAlignment = Alignment.BottomEnd,
             ) {
                 with(secondaryFab) {
-                    forEachIndexed { index, (imageVector, autoClose, onClick) ->
-                        SmallFloatingActionButton(
+                    forEachIndexed { index, action ->
+                        SecondaryFabButton(
+                            icon = action.icon,
+                            shape = CircleShape,
                             onClick = {
                                 launch(Dispatchers.Default) {
-                                    onClick()
-                                    if (autoClose) onExpandChanged(false)
+                                    action.onClick()
+                                    if (action.autoClose) onExpandChanged(false)
                                 }
                             },
+                            onLongClick = action.onLongClick?.let { longClick ->
+                                {
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    launch(Dispatchers.Default) {
+                                        longClick()
+                                        if (action.autoClose) onExpandChanged(false)
+                                    }
+                                }
+                            },
+                            indication = indication,
                             modifier = Modifier.padding(20.dp).offset {
                                 val distance = lerp(0, interval * (size - index) + padding, animatedProgress)
                                 IntOffset(0, -distance)
                             },
-                        ) {
-                            Icon(imageVector = imageVector, contentDescription = null)
-                        }
+                        )
                     }
                 }
             }
@@ -210,8 +231,45 @@ fun FabLayout(
 }
 
 private fun buildFab(builder: FabBuilder.() -> Unit) = buildList {
-    builder { icon, autoClose, action ->
-        add(Triple(icon, autoClose, action))
+    builder { icon, autoClose, onLongClick, action ->
+        add(FabAction(icon, autoClose, action, onLongClick))
+    }
+}
+
+private data class FabAction(
+    val icon: ImageVector,
+    val autoClose: Boolean,
+    val onClick: suspend () -> Unit,
+    val onLongClick: (suspend () -> Unit)? = null,
+)
+
+@Composable
+private fun SecondaryFabButton(
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    indication: androidx.compose.foundation.Indication? = null,
+    shape: Shape = CircleShape,
+) {
+    Surface(
+        modifier = modifier
+            .size(40.dp)
+            .combinedClickable(
+                interactionSource = null,
+                indication = indication,
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
+        shape = shape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = null)
+        }
     }
 }
 

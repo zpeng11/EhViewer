@@ -406,6 +406,11 @@
     <string name="favorite_folder_name_hint">Collection name</string>
     <string name="favorite_folder_limit_reached">You can create up to 9 extra collections</string>
     <string name="delete_favorite_folder">Delete collection \"%s\"?</string>
+    <string name="favorite_folder_slot_badge">Assigned to extra collection %d</string>
+    <string name="select_extra_favorite_folder">Select extra collection</string>
+    <string name="no_extra_favorite_folders">No extra collections yet</string>
+    <string name="add_to_extra_favorite_success">Added to extra collection</string>
+    <string name="add_to_extra_favorite_failure">Failed to add to extra collection</string>
     <!-- Progress Scene -->
     <string name="error_something_wrong_happened">Something wrong happened</string>
     <!-- Guide -->

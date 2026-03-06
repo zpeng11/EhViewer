@@ -264,6 +264,11 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
 
     val checkedInfoMap = remember { mutableStateMapOf<Long, BaseGalleryInfo>() }
     val selectMode = checkedInfoMap.isNotEmpty()
+    fun extraFavoriteSlotBadge(info: BaseGalleryInfo): Int? =
+        info.favoriteSlot.takeIf {
+            urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL && it in LocalFavoriteFolder.VALID_SLOT_RANGE
+        }
+
     DrawerHandle(!selectMode && !searchBarExpanded)
 
     SearchBarScreen(
@@ -344,6 +349,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                         showProgress = showProgress,
                         modifier = Modifier.height(height),
                         isInFavScene = true,
+                        extraFavoriteSlotBadge = extraFavoriteSlotBadge(info),
                         interactionSource = interactionSource,
                     )
                 }
@@ -373,6 +379,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                         showPages = showPages,
                         showProgress = showProgress,
                         showFavoriteStatus = false,
+                        extraFavoriteSlotBadge = extraFavoriteSlotBadge(info),
                         interactionSource = interactionSource,
                     )
                 }

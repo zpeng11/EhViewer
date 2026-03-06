@@ -177,6 +177,31 @@ context(_: DialogState)
 suspend fun addToFavorites(galleryInfo: GalleryInfo): Boolean = updateLocalFavorite(galleryInfo, true)
 
 context(_: DialogState)
+suspend fun addToFavorites(galleryInfo: GalleryInfo, extraSlot: Int): Boolean = addToFavorites(listOf(galleryInfo), extraSlot) > 0
+
+suspend fun addToFavorites(galleryInfoList: Collection<GalleryInfo>, extraSlot: Int): Int {
+    if (galleryInfoList.isEmpty()) return 0
+    val folder = EhDB.getLocalFavoriteFolder(extraSlot) ?: return 0
+    EhDB.putLocalFavorites(galleryInfoList)
+    val updatedGids = EhDB.moveLocalFavoritesToExtraFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid), extraSlot)
+    if (updatedGids.isEmpty()) return 0
+    val updatedGidsSet = updatedGids.toSet()
+    galleryInfoList.forEach { galleryInfo ->
+        if (galleryInfo.gid in updatedGidsSet) {
+            galleryInfo.favoriteSlot = extraSlot
+            galleryInfo.favoriteName = folder.name
+            galleryInfo.favoriteNote = null
+        }
+    }
+    FavouriteStatusRouter.notify(
+        gids = updatedGids,
+        favoriteSlot = folder.slot,
+        favoriteName = folder.name,
+    )
+    return updatedGids.size
+}
+
+context(_: DialogState)
 suspend fun modifyFavorites(galleryInfo: GalleryInfo): Boolean {
     val status = EhDB.getLocalFavoriteStatus(galleryInfo.gid)
     return updateLocalFavorite(galleryInfo, status is EhDB.FavoriteStatus.NotFavorited)
