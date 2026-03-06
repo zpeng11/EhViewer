@@ -97,7 +97,6 @@ object Settings : DataStorePreferences(null) {
     val multiThreadDownload = intPref("download_thread_2", 3)
     val downloadDelay = intPref("download_delay_3", 1000)
     val timeoutSpeed = intPref("timeout_speed_level", 6)
-    val preloadImage = intPref("preload_image_2", 5)
     val downloadOriginImage = boolPref("download_origin_image", false)
     val saveAsCbz = boolPref("save_as_cbz", false)
     val archiveMetadata = boolPref("archive_metadata", true)

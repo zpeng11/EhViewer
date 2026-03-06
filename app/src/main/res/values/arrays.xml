@@ -122,24 +122,6 @@
         <item>20000</item>
     </integer-array>
 
-    <string-array name="preload_image_entries" translatable="false">
-        <item>3</item>
-        <item>5</item>
-        <item>7</item>
-        <item>11</item>
-        <item>13</item>
-        <item>17</item>
-    </string-array>
-
-    <integer-array name="preload_image_entry_values" translatable="false">
-        <item>3</item>
-        <item>5</item>
-        <item>7</item>
-        <item>11</item>
-        <item>13</item>
-        <item>17</item>
-    </integer-array>
-
     <string-array name="read_cache_size_entries" translatable="false">
         <item>320 MB</item>
         <item>640 MB</item>

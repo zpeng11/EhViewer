@@ -35,6 +35,7 @@ import okio.Path
 private val progressScope = CoroutineScope(Dispatchers.IO)
 private const val MAX_CACHE_SIZE = 512 * 1024 * 1024
 private const val MIN_CACHE_SIZE = 256 * 1024 * 1024
+private const val READER_PREFETCH_PAGE_COUNT = 17
 
 abstract class PageLoader(
     val scope: CoroutineScope,
@@ -76,7 +77,7 @@ abstract class PageLoader(
 
     val pages = (0 until size).map { Page(it) }
 
-    private val prefetchPageCount = Settings.preloadImage.value
+    private val prefetchPageCount = READER_PREFETCH_PAGE_COUNT
 
     fun restart() {
         lock.write { cache.evictAll() }
