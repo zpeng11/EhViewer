@@ -18,13 +18,12 @@
 package com.hippo.ehviewer.image
 
 import android.graphics.Bitmap
+import android.graphics.drawable.Animatable
 import android.hardware.HardwareBuffer
 import androidx.compose.ui.unit.IntSize
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import arrow.fx.coroutines.ExitCase
-import arrow.fx.coroutines.bracketCase
 import coil3.BitmapImage
 import coil3.DrawableImage
 import coil3.Image as CoilImage
@@ -37,7 +36,6 @@ import coil3.size.Precision
 import coil3.size.Scale
 import coil3.size.Size
 import coil3.size.SizeResolver
-import com.ehviewer.core.files.openFileDescriptor
 import com.ehviewer.core.files.toUri
 import com.ehviewer.core.util.isAtLeastP
 import com.ehviewer.core.util.isAtLeastU
@@ -47,9 +45,6 @@ import com.hippo.ehviewer.coil.BitmapImageWithExtraInfo
 import com.hippo.ehviewer.coil.detectQrCode
 import com.hippo.ehviewer.coil.hardwareThreshold
 import com.hippo.ehviewer.coil.maybeCropBorder
-import com.hippo.ehviewer.jni.isGif
-import com.hippo.ehviewer.jni.mmap
-import com.hippo.ehviewer.jni.munmap
 import com.hippo.ehviewer.jni.rewriteGifSource
 import com.hippo.ehviewer.ktbuilder.execute
 import com.hippo.ehviewer.ktbuilder.imageRequest
@@ -82,6 +77,7 @@ class Image private constructor(image: CoilImage, private val src: ImageSource) 
     private fun recycle() {
         when (val image = innerImage!!) {
             is DrawableImage -> {
+                (image.drawable as? Animatable)?.stop()
                 (image.drawable as? AnimatedWebPDrawable)?.dispose()
                 src.close()
             }
@@ -120,22 +116,7 @@ class Image private constructor(image: CoilImage, private val src: ImageSource) 
 
         suspend fun decode(src: ImageSource, checkExtraneousAds: Boolean = false): Image {
             val image = when (src) {
-                is PathSource -> {
-                    if (isAtLeastP && !isAtLeastU) {
-                        // Reader decode path only needs read access for GIF probing/mmap.
-                        src.source.openFileDescriptor("r").use {
-                            val fd = it.fd
-                            if (isGif(fd)) {
-                                return bracketCase(
-                                    { mmap(fd)!! },
-                                    { buffer -> decode(byteBufferSource(buffer) { munmap(buffer).also { src.close() } }, checkExtraneousAds) },
-                                    { buffer, case -> if (case !is ExitCase.Completed) munmap(buffer) },
-                                )
-                            }
-                        }
-                    }
-                    src.right().decodeCoil(checkExtraneousAds)
-                }
+                is PathSource -> src.right().decodeCoil(checkExtraneousAds)
                 is ByteBufferSource -> {
                     if (isAtLeastP && !isAtLeastU) {
                         rewriteGifSource(src.source)
