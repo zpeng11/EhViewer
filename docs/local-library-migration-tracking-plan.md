@@ -169,18 +169,12 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-FAV-06` 收藏页多选动作扩展：在所有收藏夹页面的多选工具栏新增爱心动作，支持“移动到指定额外收藏夹（1-9）”或“全部回归默认收藏夹（仅本地）”
+- [ ] `S1-FAV-06` 收藏页多选动作扩展：在所有默认收藏夹页面的多选工具栏新增添加到额外收藏夹，额外收藏夹也买你多选工具栏添加移到其他收藏夹或回归默认收藏夹”
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/CommonOperations.kt`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
-
-- [ ] `S1-FAV-07` 兼容与迁移策略：老版本本地收藏平滑迁移为“仅本地收藏、无额外归属”，删除额外收藏夹时成员自动回归默认收藏夹
-  文件域：
-  - `/home/eleven/EhViewer/core/data/src/commonMain/kotlin/com/ehviewer/core/database/DatabaseMigrations.kt`
-  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/EhDB.kt`
-  - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesViewModel.kt`
 
 ### 任务清单（依赖域）
 - [ ] `S1-DEP-01` 移除不再需要的依赖并修复编译
