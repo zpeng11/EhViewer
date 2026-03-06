@@ -257,8 +257,26 @@ suspend fun moveLocalFavoritesToExtraFolder(gids: LongArray, slot: Int): Int {
     return updatedGids.size
 }
 
-suspend fun moveLocalFavoritesToExtraFolder(galleryInfoList: Collection<GalleryInfo>, slot: Int): Int =
-    moveLocalFavoritesToExtraFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid), slot)
+suspend fun moveLocalFavoritesToExtraFolder(galleryInfoList: Collection<GalleryInfo>, slot: Int): Int {
+    if (galleryInfoList.isEmpty()) return 0
+    val folder = EhDB.getLocalFavoriteFolder(slot) ?: return 0
+    val updatedGids = EhDB.moveLocalFavoritesToExtraFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid), slot)
+    if (updatedGids.isEmpty()) return 0
+    val updatedGidsSet = updatedGids.toSet()
+    galleryInfoList.forEach { galleryInfo ->
+        if (galleryInfo.gid in updatedGidsSet) {
+            galleryInfo.favoriteSlot = folder.slot
+            galleryInfo.favoriteName = folder.name
+            galleryInfo.favoriteNote = null
+        }
+    }
+    FavouriteStatusRouter.notify(
+        gids = updatedGids,
+        favoriteSlot = folder.slot,
+        favoriteName = folder.name,
+    )
+    return updatedGids.size
+}
 
 suspend fun moveLocalFavoritesToDefaultFolder(gids: LongArray): Int {
     val updatedGids = EhDB.moveLocalFavoritesToDefaultFolder(gids)
@@ -270,8 +288,33 @@ suspend fun moveLocalFavoritesToDefaultFolder(gids: LongArray): Int {
     return updatedGids.size
 }
 
-suspend fun moveLocalFavoritesToDefaultFolder(galleryInfoList: Collection<GalleryInfo>): Int =
-    moveLocalFavoritesToDefaultFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid))
+suspend fun moveLocalFavoritesToDefaultFolder(galleryInfoList: Collection<GalleryInfo>): Int {
+    if (galleryInfoList.isEmpty()) return 0
+    val updatedGids = EhDB.moveLocalFavoritesToDefaultFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid))
+    if (updatedGids.isEmpty()) return 0
+    val updatedGidsSet = updatedGids.toSet()
+    val localFavoriteName = appCtx.getString(R.string.local_favorites)
+    galleryInfoList.forEach { galleryInfo ->
+        if (galleryInfo.gid in updatedGidsSet) {
+            galleryInfo.favoriteSlot = LOCAL_FAVORITED
+            galleryInfo.favoriteName = localFavoriteName
+            galleryInfo.favoriteNote = null
+        }
+    }
+    FavouriteStatusRouter.notify(
+        gids = updatedGids,
+        favoriteSlot = LOCAL_FAVORITED,
+        favoriteName = localFavoriteName,
+    )
+    return updatedGids.size
+}
+
+suspend fun moveLocalFavoritesToTargetFolder(galleryInfoList: Collection<GalleryInfo>, slot: Int?): Int =
+    if (slot == null) {
+        moveLocalFavoritesToDefaultFolder(galleryInfoList)
+    } else {
+        moveLocalFavoritesToExtraFolder(galleryInfoList, slot)
+    }
 
 context(_: DestinationsNavigator)
 fun navToReader(info: BaseGalleryInfo, page: Int = -1) = navToReader(ReaderScreenArgs.Gallery(info, page))

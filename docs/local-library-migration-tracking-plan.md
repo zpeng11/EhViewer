@@ -169,7 +169,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-FAV-06` 收藏页多选动作扩展：在所有默认收藏夹页面的多选工具栏新增添加到额外收藏夹，额外收藏夹页面的多选工具栏也添加移到其他收藏夹或回归默认收藏夹”
+- [x] `S1-FAV-06` 收藏页多选动作扩展：在所有默认收藏夹页面的多选工具栏新增添加到额外收藏夹，额外收藏夹页面的多选工具栏也添加移到其他收藏夹或回归默认收藏夹”
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/CommonOperations.kt`
@@ -209,7 +209,7 @@
 - [ ] `S1-ACC-13` 单个收藏条目在任意时刻最多仅归属一个额外收藏夹，不允许同时出现在多个额外收藏夹。
 - [ ] `S1-ACC-14` 收藏页左拉侧栏可完成额外收藏夹的进入/创建/删除/重命名，计数展示正确。
 - [ ] `S1-ACC-15` 在本地收藏夹列表中，已归属额外收藏夹的条目显示对应代号（1-9）徽标，且代号与目标夹一致。
-- [ ] `S1-ACC-16` 在任意收藏夹页面，多选爱心动作可批量分配到目标额外收藏夹，或批量回归默认收藏夹，结果实时联动。
+- [x] `S1-ACC-16` 在任意收藏夹页面，多选爱心动作可批量分配到目标额外收藏夹，或批量回归默认收藏夹，结果实时联动。
 - [ ] `S1-ACC-17` 删除额外收藏夹后，原归属条目自动回归默认收藏夹（本地收藏仍保留），断网/飞行模式下全流程可用且不触发远端请求。
 
 ---
@@ -409,3 +409,5 @@
 | 2026-03-05 23:46 | Step 1 | S1-FAV-05 | ~ | agent | 修复下载页多选态 FAB 回归：将次级 FAB 从嵌套点击的 `SmallFloatingActionButton` 改为自绘 `Surface + combinedClickable` 小圆按钮，恢复所有多选动作的短按响应，并保留爱心按钮长按分配额外收藏夹能力 | `:app:compileDefaultDebugKotlin` 成功，`:app:assembleDebug` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitionsDefaultRelease/MarshmallowRelease --rerun -Prelease` 与 `assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-06 12:46:29） | 等待用户复测下载页多选态：所有按钮应恢复短按响应，爱心按钮长按应继续弹出额外收藏夹选择 |
 | 2026-03-06 00:09 | Step 1 | S1-FAV-05 | ~ | agent | 按用户反馈微调下载页收藏态可视化：Downloads 列表卡片与网格卡片在条目已归属额外收藏夹时，改为在红心图标中心叠加显示额外收藏夹代号（1..9）；仅作用于下载页，不影响收藏页现有本地收藏夹徽标方案 | `:app:compileDefaultDebugKotlin` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitionsDefaultRelease/MarshmallowRelease --rerun -Prelease` 与 `assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-06 13:09:42） | 等待用户复测下载页：归属额外收藏夹的条目应在红心中心显示对应数字，默认本地收藏仍只显示纯红心 |
 | 2026-03-06 00:29 | Step 1 | S1-FAV-05 | x | agent | 用户确认 `S1-FAV-05 PASS`，本地收藏夹徽标、下载页分配入口、下载页红心数字叠层均满足预期 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-FAV-06 |
+| 2026-03-06 17:29 | Step 1 | S1-FAV-06 | ~ | agent | 完成收藏页多选归属迁移实现：`FavoritesScreen` 在多选工具栏新增爱心动作；默认本地收藏页可批量分配到额外收藏夹，额外收藏夹页可批量迁移到其他额外收藏夹或回归本地收藏；`CommonOperations` 补齐批量迁移后的本地对象状态同步；补充中英文文案 | `:app:compileDefaultDebugKotlin` 成功，`:app:assembleDebug` 成功；按 `docs/wsl-local-build-install.md` 执行 `prepareLibraryDefinitionsDefaultRelease`/`prepareLibraryDefinitionsMarshmallowRelease` 与 `assembleRelease -Prelease` 成功；ADB 安装成功（serial=192.168.2.93:43091，versionName=1.14.6，versionCode=180063，lastUpdateTime=2026-03-07 06:29:34） | 安装时 incremental install 被拒后自动回退 streamed install 并成功；等待用户实机验证 `S1-ACC-16`：在本地收藏/额外收藏夹页面，多选爱心动作应可批量迁移归属且结果实时联动 |
+| 2026-03-06 17:31 | Step 1 | S1-FAV-06 | x | agent | 用户确认 `S1-FAV-06 PASS`，收藏页多选归属迁移验收通过 | 实机验证通过（用户反馈 PASS） | 按流程提交本步后进入 S1-DEP-01 |

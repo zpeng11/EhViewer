@@ -390,9 +390,12 @@
     <string name="delete_favorite_folder">删除收藏夹“%s”？</string>
     <string name="favorite_folder_slot_badge">已归属额外收藏夹 %d</string>
     <string name="select_extra_favorite_folder">选择额外收藏夹</string>
+    <string name="select_target_favorite_folder">选择目标收藏夹</string>
     <string name="no_extra_favorite_folders">当前还没有额外收藏夹</string>
     <string name="add_to_extra_favorite_success">已加入额外收藏夹</string>
     <string name="add_to_extra_favorite_failure">加入额外收藏夹失败</string>
+    <string name="move_to_favorite_folder_success">已更新收藏夹归属</string>
+    <string name="move_to_favorite_folder_failure">更新收藏夹归属失败</string>
     <!-- Progress Scene -->
     <string name="error_something_wrong_happened">被玩坏了</string>
     <!-- Guide -->

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material.icons.filled.Refresh
@@ -83,11 +84,13 @@ import com.hippo.ehviewer.ui.deleteLocalFavoriteFolder
 import com.hippo.ehviewer.ui.main.GalleryInfoGridItem
 import com.hippo.ehviewer.ui.main.GalleryInfoListItem
 import com.hippo.ehviewer.ui.main.GalleryList
+import com.hippo.ehviewer.ui.moveLocalFavoritesToTargetFolder
 import com.hippo.ehviewer.ui.removeFromFavorites
 import com.hippo.ehviewer.ui.renameLocalFavoriteFolder
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.ui.tools.awaitInputText
+import com.hippo.ehviewer.ui.tools.awaitSelectItem
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -97,6 +100,12 @@ import moe.tarsin.coroutines.runSwallowingWithUI
 import moe.tarsin.navigate
 import moe.tarsin.tip
 import splitties.init.appCtx
+
+private sealed interface FavoriteFolderTarget {
+    data object Default : FavoriteFolderTarget
+
+    data class Extra(val slot: Int) : FavoriteFolderTarget
+}
 
 @Destination<RootGraph>
 @Composable
@@ -135,6 +144,13 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     val density = LocalDensity.current
     val searchBarHint = stringResource(R.string.search_bar_hint, favCatName)
     val data = viewModel.data.collectAsLazyPagingItems()
+    val checkedInfoMap = remember { mutableStateMapOf<Long, BaseGalleryInfo>() }
+    val selectMode = checkedInfoMap.isNotEmpty()
+
+    fun extraFavoriteSlotBadge(info: BaseGalleryInfo): Int? =
+        info.favoriteSlot.takeIf {
+            urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL && it in LocalFavoriteFolder.VALID_SLOT_RANGE
+        }
 
     fun refresh(newUrlBuilder: FavListUrlBuilder = urlBuilder.copy(jumpTo = null, prev = null, next = null)) {
         urlBuilder = newUrlBuilder
@@ -146,6 +162,59 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         refresh(FavListUrlBuilder(favCat = favCat, keyword = keyword))
         Settings.recentFavCat = favCat
         fabHidden = false
+    }
+
+    suspend fun selectFavoriteFolderTarget(): FavoriteFolderTarget? {
+        val extraFolderTargets = localFavoriteFolders.filterNot { it.slot == selectedExtraSlot }
+        val allowDefaultTarget = selectedExtraSlot != null
+        val items = buildList {
+            if (allowDefaultTarget) {
+                add(localFavName)
+            }
+            addAll(extraFolderTargets.map { "[${it.slot}] ${it.name}" })
+        }
+        if (items.isEmpty()) {
+            tip(R.string.no_extra_favorite_folders)
+            return null
+        }
+        val selectedIndex = with(dialogState) {
+            awaitSelectItem(
+                items = items,
+                title = if (allowDefaultTarget) {
+                    R.string.select_target_favorite_folder
+                } else {
+                    R.string.select_extra_favorite_folder
+                },
+                selected = 0,
+            )
+        }
+        if (allowDefaultTarget && selectedIndex == 0) {
+            return FavoriteFolderTarget.Default
+        }
+        val extraFolderIndex = selectedIndex - if (allowDefaultTarget) 1 else 0
+        return extraFolderTargets.getOrNull(extraFolderIndex)?.let { FavoriteFolderTarget.Extra(it.slot) }
+    }
+
+    suspend fun moveSelectionTo(target: FavoriteFolderTarget) {
+        val selectedInfo = checkedInfoMap.values.toList()
+        if (selectedInfo.isEmpty()) return
+        val targetSlot = when (target) {
+            FavoriteFolderTarget.Default -> null
+            is FavoriteFolderTarget.Extra -> target.slot
+        }
+        runCatching {
+            moveLocalFavoritesToTargetFolder(selectedInfo, targetSlot)
+        }.onSuccess { changed ->
+            if (changed > 0) {
+                tip(R.string.move_to_favorite_folder_success)
+                checkedInfoMap.clear()
+                data.refresh()
+            } else {
+                tip(R.string.move_to_favorite_folder_failure)
+            }
+        }.onFailure {
+            tip(R.string.move_to_favorite_folder_failure)
+        }
     }
 
     LaunchedEffect(urlBuilder.favCat, localFavoriteFolders) {
@@ -261,13 +330,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             }
         }
     }
-
-    val checkedInfoMap = remember { mutableStateMapOf<Long, BaseGalleryInfo>() }
-    val selectMode = checkedInfoMap.isNotEmpty()
-    fun extraFavoriteSlotBadge(info: BaseGalleryInfo): Int? =
-        info.favoriteSlot.takeIf {
-            urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL && it in LocalFavoriteFolder.VALID_SLOT_RANGE
-        }
 
     DrawerHandle(!selectMode && !searchBarExpanded)
 
@@ -422,6 +484,10 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             onClick(Icons.Default.DoneAll, autoClose = false) {
                 val info = data.itemSnapshotList.items.associateBy { it.gid }
                 checkedInfoMap.putAll(info)
+            }
+            onClick(Icons.Default.Favorite, autoClose = false) {
+                val target = dialogState.runCatching { selectFavoriteFolderTarget() }.getOrNull() ?: return@onClick
+                moveSelectionTo(target)
             }
             onClick(Icons.Default.HeartBroken) {
                 val info = checkedInfoMap.takeAndClear()
