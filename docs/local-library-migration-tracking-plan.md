@@ -169,7 +169,7 @@
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/base/strings.xml`
   - `/home/eleven/EhViewer/core/i18n/src/commonMain/moko-resources/zh-rCN/strings.xml`
 
-- [ ] `S1-FAV-06` 收藏页多选动作扩展：在所有默认收藏夹页面的多选工具栏新增添加到额外收藏夹，额外收藏夹也买你多选工具栏添加移到其他收藏夹或回归默认收藏夹”
+- [ ] `S1-FAV-06` 收藏页多选动作扩展：在所有默认收藏夹页面的多选工具栏新增添加到额外收藏夹，额外收藏夹页面的多选工具栏也添加移到其他收藏夹或回归默认收藏夹”
   文件域：
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/screen/FavoritesScreen.kt`
   - `/home/eleven/EhViewer/app/src/main/kotlin/com/hippo/ehviewer/ui/CommonOperations.kt`
