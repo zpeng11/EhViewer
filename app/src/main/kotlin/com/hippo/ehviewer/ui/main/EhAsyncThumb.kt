@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Card
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,18 +17,24 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
+import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.ui.util.SETNodeGenerator
 import com.ehviewer.core.ui.util.SharedElementBox
 import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.thenIf
+import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ktbuilder.imageRequest
 import com.hippo.ehviewer.ui.tools.shouldCrop
 
 @Composable
-@NonRestartableComposable
 fun requestOf(model: GalleryInfo) = with(LocalContext.current) {
-    remember(model) { imageRequest(model) }
+    if (model is DownloadInfo) {
+        val thumbVersion by DownloadManager.collectLocalThumbVersion(model.gid)
+        remember(model.gid, thumbVersion) { imageRequest(model) }
+    } else {
+        remember(model) { imageRequest(model) }
+    }
 }
 
 @Composable

@@ -130,6 +130,7 @@ class EhApplication : Application(), SingletonImageLoader.Factory {
                 }
                 initialized = true
                 DownloadManager.readMetadataFromLocal()
+                DownloadManager.backfillLocalThumbs()
             }
             launch {
                 FileUtils.cleanupDirectory(AppConfig.externalCrashDir)

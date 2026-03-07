@@ -33,6 +33,9 @@ import com.hippo.ehviewer.client.EhUrl.referer
 import com.hippo.ehviewer.client.EhUtils
 import com.hippo.ehviewer.client.exception.FatalException
 import com.hippo.ehviewer.client.exception.QuotaExceededException
+import com.hippo.ehviewer.download.DownloadManager
+import com.hippo.ehviewer.download.ensureLocalThumbFile
+import com.hippo.ehviewer.download.findLocalThumbFile
 import com.hippo.ehviewer.util.displayString
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.decrementAndFetch
@@ -216,6 +219,18 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
     private val prepareJob = prepareScope.async { doPrepare() }
     private val archiveJob = launch(start = CoroutineStart.LAZY) {
         val failed = spiderDen.archive()
+        if (mWorkerScope.isDownloadMode) {
+            DownloadManager.getDownloadInfo(galleryInfo.gid)?.let { info ->
+                val hadLocalThumb = info.findLocalThumbFile() != null
+                runCatching {
+                    if (!hadLocalThumb && info.ensureLocalThumbFile() != null) {
+                        DownloadManager.notifyLocalThumbReady(info.gid)
+                    }
+                }.onFailure {
+                    logcat(it)
+                }
+            }
+        }
         notifyAllPageDownloaded(failed)
     }
 

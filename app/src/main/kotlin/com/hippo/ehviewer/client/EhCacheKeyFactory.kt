@@ -39,7 +39,7 @@ fun getV2PreviewKey(url: String) = "$".plus(
 )
 
 val GalleryInfo.thumbUrl
-    get() = keyToUrl(thumbKey!!)
+    get() = thumbKey?.let(::keyToUrl).orEmpty()
 
 fun keyToUrl(key: String) = if (key.startsWith("https:")) {
     key

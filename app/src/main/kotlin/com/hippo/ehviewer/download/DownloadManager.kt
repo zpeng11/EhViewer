@@ -62,7 +62,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -108,6 +110,8 @@ object DownloadManager : OnSpiderListener, CoroutineScope {
     val isInitializedFlow: StateFlow<Boolean> = _isInitialized.asStateFlow()
     val isInitialized: Boolean
         get() = _isInitialized.value
+
+    private val localThumbVersionFlow = MutableStateFlow<Map<Long, Int>>(emptyMap())
 
     init {
         launch {
@@ -259,6 +263,18 @@ object DownloadManager : OnSpiderListener, CoroutineScope {
     inline fun <T> updatedDownloadInfo(info: DownloadInfo, crossinline transform: @DisallowComposableCalls DownloadInfo.() -> T): T = remember {
         notifyFlow.transform { if (it.gid == info.gid) emit(transform(it)) }
     }.collectAsState(transform(info)).value
+
+    @Stable
+    @Composable
+    fun collectLocalThumbVersion(gid: Long): State<Int> = remember(gid) {
+        localThumbVersionFlow.map { it[gid] ?: 0 }
+    }.collectAsState(0)
+
+    fun notifyLocalThumbReady(gid: Long) {
+        localThumbVersionFlow.update { map ->
+            map + (gid to ((map[gid] ?: 0) + 1))
+        }
+    }
 
     suspend fun startAllDownload() {
         val updateList = sortMutex.withLock {
@@ -621,6 +637,16 @@ object DownloadManager : OnSpiderListener, CoroutineScope {
             }
         }
         if (galleryInfoList.isNotEmpty()) EhDB.updateGalleryInfo(galleryInfoList)
+    }
+
+    suspend fun backfillLocalThumbs() {
+        val snapshot = sortMutex.withLock { allInfoList.toList() }
+        snapshot.forEach { info ->
+            val hadLocalThumb = info.findLocalThumbFile() != null
+            if (!hadLocalThumb && info.ensureLocalThumbFile() != null) {
+                notifyLocalThumbReady(info.gid)
+            }
+        }
     }
 
     val isIdle: Boolean

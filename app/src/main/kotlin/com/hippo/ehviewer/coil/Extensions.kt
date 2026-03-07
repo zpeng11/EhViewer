@@ -11,23 +11,43 @@ import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryPreview
 import com.ehviewer.core.model.V2GalleryPreview
+import com.hippo.ehviewer.R
 import com.hippo.ehviewer.client.getThumbKey
 import com.hippo.ehviewer.client.getV2PreviewKey
 import com.hippo.ehviewer.client.thumbUrl
-import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ktbuilder.execute
+
+private fun ImageRequest.Builder.placeholderThumb() = apply {
+    data(R.drawable.image_failed)
+    size(SizeResolver.ORIGINAL)
+    diskCachePolicy(CachePolicy.DISABLED)
+}
+
+private fun ImageRequest.Builder.downloadThumb(info: DownloadInfo) = apply {
+    data(localDownloadThumbData(info.gid))
+    size(SizeResolver.ORIGINAL)
+    downloadInfo(info)
+    memoryCacheKey("download-thumb:${info.gid}")
+    diskCachePolicy(CachePolicy.DISABLED)
+}
 
 // Load in original size so the memory cache can be reused for preload requests
 fun ImageRequest.Builder.ehUrl(info: GalleryInfo) = apply {
-    val key = info.thumbKey!!
-    data(info.thumbUrl)
-    size(SizeResolver.ORIGINAL)
-    val downloadInfo = (info as? DownloadInfo) ?: DownloadManager.getDownloadInfo(info.gid)
-    if (downloadInfo != null) {
-        downloadInfo(downloadInfo)
+    val downloadInfo = info as? DownloadInfo
+    val thumbKey = info.thumbKey
+    when {
+        downloadInfo != null -> downloadThumb(downloadInfo)
+        thumbKey != null -> {
+            data(info.thumbUrl)
+            size(SizeResolver.ORIGINAL)
+            memoryCacheKey(thumbKey)
+            diskCacheKey(thumbKey)
+        }
+        else -> {
+            placeholderThumb()
+            memoryCacheKey("missing-thumb:${info.gid}")
+        }
     }
-    memoryCacheKey(key)
-    diskCacheKey(key)
 }
 
 // Load in original size so the memory cache can be reused for preload requests

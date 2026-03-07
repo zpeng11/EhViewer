@@ -1,21 +1,24 @@
 package com.hippo.ehviewer.coil
 
+import android.content.ContentResolver
+import android.net.Uri
 import coil3.Extras
 import coil3.getExtra
 import coil3.intercept.Interceptor
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.ImageResult
 import coil3.request.SuccessResult
 import com.ehviewer.core.database.model.DownloadInfo
-import com.ehviewer.core.files.delete
-import com.ehviewer.core.files.isDirectory
-import com.ehviewer.core.files.isFile
-import com.ehviewer.core.files.sendTo
 import com.ehviewer.core.files.toUri
-import com.hippo.ehviewer.EhApplication.Companion.imageCache
-import com.hippo.ehviewer.EhDB
-import com.hippo.ehviewer.client.getThumbKey
-import com.hippo.ehviewer.download.downloadLocation
+import com.hippo.ehviewer.R
+import com.hippo.ehviewer.download.ensureLocalThumbFile
+import com.hippo.ehviewer.download.findLocalThumbFile
+import com.hippo.ehviewer.download.localThumbCacheKey
+
+const val LOCAL_DOWNLOAD_THUMB_DATA_PREFIX = "ehviewer-download-thumb:"
+
+fun localDownloadThumbData(gid: Long) = "$LOCAL_DOWNLOAD_THUMB_DATA_PREFIX$gid"
 
 private val downloadInfoKey = Extras.Key<DownloadInfo?>(default = null)
 
@@ -26,40 +29,47 @@ fun ImageRequest.Builder.downloadInfo(info: DownloadInfo) = apply {
 val ImageRequest.downloadInfo: DownloadInfo?
     get() = getExtra(downloadInfoKey)
 
+private fun placeholderUri(request: ImageRequest) = Uri.Builder()
+    .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+    .authority(request.context.packageName)
+    .appendPath(R.drawable.image_failed.toString())
+    .build()
+
+private fun isLocalDownloadThumbRequest(data: Any?) = data is String && data.startsWith(LOCAL_DOWNLOAD_THUMB_DATA_PREFIX)
+
 object DownloadThumbInterceptor : Interceptor {
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
-        val info = chain.request.downloadInfo
-        if (info != null && !info.dirname.isNullOrBlank()) {
-            val thumbKey = getThumbKey(chain.request.data as String)
-            if (info.thumbKey != thumbKey) {
-                info.thumbKey = thumbKey
-                EhDB.putGalleryInfo(info.galleryInfo)
-            }
-            val dir = downloadLocation / info.dirname!!
-            val format = thumbKey.substringAfterLast('.', "")
-            check(format.isNotBlank())
-            val thumb = dir / "thumb.$format"
-            val v1Thumb = dir / "thumb.jpg"
-            if (thumb.isFile) {
-                val new = chain.request.newBuilder().data(thumb.toUri()).build()
-                val result = chain.withRequest(new).proceed()
-                if (result is SuccessResult) {
-                    if (thumb != v1Thumb) v1Thumb.delete()
-                    return result
-                }
-            }
-            val result = chain.proceed()
-            if (result is SuccessResult && dir.isDirectory) {
-                // Accessing the recreated file immediately after deleting it throws
-                // FileNotFoundException, so we just overwrite the existing file.
-                val key = requireNotNull(chain.request.memoryCacheKey)
-                imageCache.read(key) {
-                    data sendTo thumb
-                }
-                if (thumb != v1Thumb) v1Thumb.delete()
-            }
-            return result
+        if (!isLocalDownloadThumbRequest(chain.request.data)) {
+            return chain.proceed()
         }
-        return chain.proceed()
+
+        val info = chain.request.downloadInfo ?: return chain.withRequest(
+            chain.request.newBuilder()
+                .data(placeholderUri(chain.request))
+                .memoryCacheKey("download-thumb-missing")
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .build(),
+        ).proceed()
+
+        val localThumb = info.findLocalThumbFile() ?: info.ensureLocalThumbFile()
+        if (localThumb != null) {
+            val localRequest = chain.request.newBuilder()
+                .data(localThumb.toUri())
+                .memoryCacheKey(info.localThumbCacheKey(localThumb))
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .build()
+            val result = chain.withRequest(localRequest).proceed()
+            if (result is SuccessResult) {
+                return result
+            }
+        }
+
+        return chain.withRequest(
+            chain.request.newBuilder()
+                .data(placeholderUri(chain.request))
+                .memoryCacheKey("download-thumb-missing:${info.gid}")
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .build(),
+        ).proceed()
     }
 }
