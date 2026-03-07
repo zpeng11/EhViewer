@@ -28,7 +28,6 @@ import com.ehviewer.core.network.EhCookieStore
 import com.ehviewer.core.util.logcat
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
-import com.hippo.ehviewer.client.data.FavListUrlBuilder
 import com.hippo.ehviewer.client.data.fillInfo
 import com.hippo.ehviewer.client.data.filterComments
 import com.hippo.ehviewer.client.exception.CloudflareBypassException
@@ -43,8 +42,6 @@ import com.hippo.ehviewer.client.exception.NotLoggedInException
 import com.hippo.ehviewer.client.exception.ParseException
 import com.hippo.ehviewer.client.parser.ArchiveParser
 import com.hippo.ehviewer.client.parser.EventPaneParser
-import com.hippo.ehviewer.client.parser.FavParserResult
-import com.hippo.ehviewer.client.parser.FavoritesParser
 import com.hippo.ehviewer.client.parser.GalleryApiParser
 import com.hippo.ehviewer.client.parser.GalleryDetailParser
 import com.hippo.ehviewer.client.parser.GalleryListParser
@@ -78,7 +75,6 @@ import io.ktor.utils.io.readAvailable
 import java.io.File
 import java.nio.ByteBuffer
 import kotlin.math.ceil
-import kotlin.system.measureTimeMillis
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerializationException
@@ -278,9 +274,6 @@ object EhEngine {
 
     suspend fun getPreviewList(url: String) = ehRequest(url, EhUrl.referer).fetchUsingAsByteBuffer(GalleryDetailParser::parsePreviews)
 
-    suspend fun getFavorites(url: String) = ehRequest(url, EhUrl.referer).fetchUsingAsByteBuffer(FavoritesParser::parse)
-        .apply { galleryInfoList.fillInfo(url) }
-
     suspend fun signIn(username: String, password: String): String {
         val referer = "https://forums.e-hentai.org/index.php?act=Login&CODE=00"
         val url = EhUrl.API_SIGN_IN
@@ -312,27 +305,6 @@ object EhEngine {
         val location = response.headers["Location"] ?: url
         ehRequest(location, url).fetchUsingAsByteBuffer(GalleryDetailParser::parseComments)
     }
-
-    suspend fun modifyFavorites(gid: Long, token: String, dstCat: Int = -1, note: String = "") {
-        val catStr: String = when (dstCat) {
-            -1 -> "favdel"
-            in 0..9 -> dstCat.toString()
-            else -> throw EhException("Invalid dstCat: $dstCat")
-        }
-        val url = EhUrl.getAddFavorites(gid, token)
-        ehRequest(url, url, EhUrl.origin) {
-            formBody {
-                append("favcat", catStr)
-                append("favnote", note)
-                // apply=Add+to+Favorites is not necessary, just use apply=Apply+Changes all the time
-                append("apply", "Apply Changes")
-                append("update", "1")
-            }
-        }.executeSafely { }
-    }
-
-    suspend fun getFavoriteNote(gid: Long, token: String) = ehRequest(EhUrl.getAddFavorites(gid, token), EhUrl.getGalleryDetailUrl(gid, token))
-        .fetchUsingAsText(FavoritesParser::parseNote)
 
     suspend fun downloadArchive(gid: Long, token: String, res: String, isHath: Boolean): String? {
         val url = EhUrl.getArchiveUrl(gid, token)
@@ -369,23 +341,6 @@ object EhEngine {
             append("reset_imagelimit", "Reset Quota")
         }
     }.fetchUsingAsText(HomeParser::parseResetLimits)
-
-    suspend fun modifyFavorites(gidArray: LongArray, srcCat: Int, dstCat: Int): FavParserResult {
-        val url = ehUrl(EhUrl.FAV_PATH) {
-            if (FavListUrlBuilder.isValidFavCat(srcCat)) addQueryParameter("favcat", srcCat.toString())
-        }.buildString()
-        val catStr: String = when (dstCat) {
-            -1 -> "delete"
-            in 0..9 -> "fav$dstCat"
-            else -> throw EhException("Invalid dstCat: $dstCat")
-        }
-        return ehRequest(url, url, EhUrl.origin) {
-            formBody {
-                append("ddact", catStr)
-                gidArray.forEach { append("modifygids[]", it.toString()) }
-            }
-        }.fetchUsingAsByteBuffer(FavoritesParser::parse).apply { galleryInfoList.fillInfo(url) }
-    }
 
     suspend fun getGalleryPageApi(gid: Long, index: Int, pToken: String, showKey: String?, previousPToken: String?): GalleryPageParser.Result {
         val referer = if (index > 0 && previousPToken != null) EhUrl.getPageUrl(gid, index - 1, previousPToken) else null
@@ -486,14 +441,4 @@ object EhEngine {
         }
     }
 
-    suspend fun addFavorites(galleryList: List<Pair<Long, String>>, dstCat: Int) {
-        galleryList.forEach { (gid, token) ->
-            // https://github.com/FooIbar/EhViewer/issues/1190
-            // Workaround for duplicate items when sorting by favorited time
-            val timeTaken = measureTimeMillis {
-                modifyFavorites(gid, token, dstCat)
-            }
-            delay(1000 - timeTaken)
-        }
-    }
 }
