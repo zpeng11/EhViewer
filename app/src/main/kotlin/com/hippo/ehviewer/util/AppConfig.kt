@@ -38,6 +38,7 @@ object AppConfig {
     private const val PARSE_ERROR = "parse_error"
     private const val CRASH = "crash"
     private const val TAG_TRANSLATIONS = "tag-translations"
+    private const val DOWNLOAD_THUMBS = "download-thumbs"
 
     private val abi = Build.SUPPORTED_ABIS[0].takeIf {
         it in setOf("arm64-v8a", "x86_64", "armeabi-v7a")
@@ -73,6 +74,8 @@ object AppConfig {
     // Following locations will be clear on app startup
     val tempDir
         get() = (appCtx.cacheDir.toOkioPath() / TEMP).apply { check(ensureDirectory()) }
+    val downloadThumbCacheDir
+        get() = (appCtx.cacheDir.toOkioPath() / DOWNLOAD_THUMBS).apply { check(ensureDirectory()) }
     val externalTempDir
         get() = appCtx.externalCacheDir?.toOkioPath()?.let { it / TEMP }?.apply { check(ensureDirectory()) }
 }
