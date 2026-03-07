@@ -129,7 +129,8 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     var fabHidden by remember { mutableStateOf(false) }
 
     val dialogState by rememberUpdatedState(contextOf<DialogState>())
-    val localFavoriteFolders by viewModel.localFavoriteFolders.collectAsState(emptyList())
+    val localFavoriteFoldersState by viewModel.localFavoriteFolders.collectAsState<List<LocalFavoriteFolder>, List<LocalFavoriteFolder>?>(null)
+    val localFavoriteFolders = localFavoriteFoldersState.orEmpty()
 
     // Derived State
     val keyword = urlBuilder.keyword
@@ -217,8 +218,12 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         }
     }
 
-    LaunchedEffect(urlBuilder.favCat, localFavoriteFolders) {
-        if (!urlBuilder.isLocal || (selectedExtraSlot != null && selectedFolder == null)) {
+    LaunchedEffect(urlBuilder.favCat, localFavoriteFoldersState) {
+        if (!urlBuilder.isLocal) {
+            openLocalFolder()
+            return@LaunchedEffect
+        }
+        if (localFavoriteFoldersState != null && selectedExtraSlot != null && selectedFolder == null) {
             openLocalFolder()
         }
     }
