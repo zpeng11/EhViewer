@@ -416,6 +416,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                         showProgress = showProgress,
                         modifier = Modifier.height(height),
                         isInFavScene = true,
+                        localOnlyThumb = true,
                         extraFavoriteSlotBadge = extraFavoriteSlotBadge(info),
                         interactionSource = interactionSource,
                     )
@@ -446,12 +447,14 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                         showPages = showPages,
                         showProgress = showProgress,
                         showFavoriteStatus = false,
+                        localOnlyThumb = true,
                         extraFavoriteSlotBadge = extraFavoriteSlotBadge(info),
                         interactionSource = interactionSource,
                     )
                 }
             },
             searchBarOffsetY = { searchBarOffsetY },
+            prefetchThumbnails = false,
             scrollToTopOnRefresh = urlBuilder.favCat != FavListUrlBuilder.FAV_CAT_LOCAL,
             onRefresh = { refresh() },
             onLoading = { searchBarOffsetY = 0 },

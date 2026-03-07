@@ -63,6 +63,7 @@ fun GalleryInfoListItem(
     showProgress: Boolean,
     modifier: Modifier = Modifier,
     isInFavScene: Boolean = false,
+    localOnlyThumb: Boolean = false,
     extraFavoriteSlotBadge: Int? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) = CrystalCard(
@@ -75,6 +76,7 @@ fun GalleryInfoListItem(
         with(listThumbGenerator) {
             EhThumbCard(
                 key = info,
+                localOnly = localOnlyThumb,
                 modifier = Modifier.aspectRatio(DEFAULT_RATIO),
             )
         }
@@ -175,6 +177,7 @@ fun GalleryInfoGridItem(
     showProgress: Boolean = true,
     showFavoriteStatus: Boolean = true,
     showFavoriteSlotOverlay: Boolean = false,
+    localOnlyThumb: Boolean = false,
     extraFavoriteSlotBadge: Int? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) = ElevatedCard(
@@ -195,7 +198,7 @@ fun GalleryInfoGridItem(
                     mutableFloatStateOf(ratio)
                 }
                 AsyncImage(
-                    model = requestOf(info),
+                    model = requestOf(info, localOnlyThumb),
                     contentDescription = null,
                     modifier = Modifier.aspectRatio(ratio),
                     onSuccess = {

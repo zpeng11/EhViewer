@@ -81,6 +81,7 @@ fun GalleryList(
     thumbListState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
     thumbItemContent: @Composable (LazyStaggeredGridItemScope.(BaseGalleryInfo) -> Unit),
     searchBarOffsetY: () -> Int,
+    prefetchThumbnails: Boolean = true,
     scrollToTopOnRefresh: Boolean = true,
     onRefresh: () -> Unit,
     onLoading: () -> Unit,
@@ -133,7 +134,9 @@ fun GalleryList(
                     val info = data[index]
                     if (info != null) {
                         detailItemContent(info)
-                        PrefetchAround(data, index, 5) { imageRequest(it) }
+                        if (prefetchThumbnails) {
+                            PrefetchAround(data, index, 5) { imageRequest(it) }
+                        }
                     }
                 }
                 if (showLoadStateIndicator) {
@@ -163,7 +166,9 @@ fun GalleryList(
                     val info = data[index]
                     if (info != null) {
                         thumbItemContent(info)
-                        PrefetchAround(data, index, 10) { imageRequest(it) }
+                        if (prefetchThumbnails) {
+                            PrefetchAround(data, index, 10) { imageRequest(it) }
+                        }
                     }
                 }
                 if (showLoadStateIndicator) {

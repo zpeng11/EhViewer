@@ -15,6 +15,7 @@ import com.hippo.ehviewer.R
 import com.hippo.ehviewer.client.getThumbKey
 import com.hippo.ehviewer.client.getV2PreviewKey
 import com.hippo.ehviewer.client.thumbUrl
+import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ktbuilder.execute
 
 private fun ImageRequest.Builder.placeholderThumb() = apply {
@@ -47,6 +48,16 @@ fun ImageRequest.Builder.ehUrl(info: GalleryInfo) = apply {
             placeholderThumb()
             memoryCacheKey("missing-thumb:${info.gid}")
         }
+    }
+}
+
+fun ImageRequest.Builder.localEhUrl(info: GalleryInfo) = apply {
+    val downloadInfo = (info as? DownloadInfo) ?: DownloadManager.getDownloadInfo(info.gid)
+    if (downloadInfo != null) {
+        downloadThumb(downloadInfo)
+    } else {
+        placeholderThumb()
+        memoryCacheKey("missing-local-thumb:${info.gid}")
     }
 }
 

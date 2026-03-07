@@ -23,13 +23,22 @@ import com.ehviewer.core.ui.util.SETNodeGenerator
 import com.ehviewer.core.ui.util.SharedElementBox
 import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.thenIf
+import com.hippo.ehviewer.coil.localEhUrl
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ktbuilder.imageRequest
 import com.hippo.ehviewer.ui.tools.shouldCrop
 
 @Composable
-fun requestOf(model: GalleryInfo) = with(LocalContext.current) {
-    if (model is DownloadInfo) {
+fun requestOf(model: GalleryInfo, localOnly: Boolean = false) = with(LocalContext.current) {
+    if (localOnly) {
+        val downloaded by DownloadManager.collectContainDownloadInfo(model.gid)
+        val thumbVersion by DownloadManager.collectLocalThumbVersion(model.gid)
+        remember(model.gid, downloaded, thumbVersion) {
+            imageRequest {
+                localEhUrl(model)
+            }
+        }
+    } else if (model is DownloadInfo) {
         val thumbVersion by DownloadManager.collectLocalThumbVersion(model.gid)
         remember(model.gid, thumbVersion) { imageRequest(model) }
     } else {
@@ -41,10 +50,11 @@ fun requestOf(model: GalleryInfo) = with(LocalContext.current) {
 context(_: SharedTransitionScope, _: TransitionsVisibilityScope, _: SETNodeGenerator)
 fun EhAsyncCropThumb(
     key: GalleryInfo,
+    localOnly: Boolean = false,
     modifier: Modifier = Modifier,
 ) = SharedElementBox(key = "${key.gid}", shape = ShapeDefaults.Medium) {
     var contentScale by remember(key) { mutableStateOf(ContentScale.Fit) }
-    val request = requestOf(key)
+    val request = requestOf(key, localOnly)
     Image(
         // https://github.com/coil-kt/coil/issues/2959
         painter = rememberAsyncImagePainter(
@@ -65,11 +75,12 @@ fun EhAsyncCropThumb(
 context(_: SharedTransitionScope, _: TransitionsVisibilityScope, _: SETNodeGenerator)
 fun EhThumbCard(
     key: GalleryInfo,
+    localOnly: Boolean = false,
     modifier: Modifier = Modifier,
 ) = Card(modifier = modifier) {
     SharedElementBox(key = "${key.gid}", shape = ShapeDefaults.Medium) {
         var contentScale by remember(key) { mutableStateOf(ContentScale.Fit) }
-        val request = requestOf(key)
+        val request = requestOf(key, localOnly)
         val painter = rememberAsyncImagePainter(
             model = request,
             onSuccess = {

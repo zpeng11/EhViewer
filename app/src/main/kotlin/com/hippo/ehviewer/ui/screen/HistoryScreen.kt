@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.fork.SwipeToDismissBox
 import androidx.compose.material3.fork.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +43,9 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import androidx.paging.map
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.i18n.R
+import com.ehviewer.core.model.GalleryInfo.Companion.LOCAL_FAVORITED
 import com.ehviewer.core.ui.component.FastScrollLazyColumn
 import com.ehviewer.core.ui.icons.EhIcons
 import com.ehviewer.core.ui.icons.big.History
@@ -73,6 +76,12 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
     val title = stringResource(id = R.string.history)
     val hint = stringResource(R.string.search_bar_hint, title)
     val animateItems by Settings.animateItems.collectAsState()
+    val localFavoriteName = stringResource(R.string.local_favorites)
+    val localFavoriteFoldersState by EhDB.localFavoriteFolders.collectAsState<List<LocalFavoriteFolder>, List<LocalFavoriteFolder>?>(null)
+    val localFavoriteFolders = localFavoriteFoldersState.orEmpty()
+    val extraFavoriteNameMap = remember(localFavoriteFolders) {
+        localFavoriteFolders.associate { it.slot to it.name }
+    }
 
     var searchBarExpanded by rememberSaveable { mutableStateOf(false) }
     var searchBarOffsetY by remember { mutableIntStateOf(0) }
@@ -81,7 +90,7 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
     DrawerHandle(!searchBarExpanded)
 
     val density = LocalDensity.current
-    val historyData = rememberInVM {
+    val historyData = rememberInVM(keyword to localFavoriteFolders) {
         Pager(config = PagingConfig(pageSize = 20, jumpThreshold = 40)) {
             if (keyword.isNotEmpty()) {
                 EhDB.searchHistory(keyword)
@@ -89,9 +98,14 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
                 EhDB.historyLazyList
             }
         }.flow.map { data ->
-            val favCat = Settings.favCat
             data.map {
-                it.apply { favoriteName = favCat.getOrNull(favoriteSlot) }
+                it.apply {
+                    favoriteName = when (favoriteSlot) {
+                        LOCAL_FAVORITED -> localFavoriteName
+                        in LocalFavoriteFolder.VALID_SLOT_RANGE -> extraFavoriteNameMap[favoriteSlot] ?: localFavoriteName
+                        else -> null
+                    }
+                }
             }
         }.cachedIn(viewModelScope)
     }.collectAsLazyPagingItems()
