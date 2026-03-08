@@ -194,15 +194,7 @@ fn parse_detail(gd: &mut GalleryDetail, dom: &VDom, parser: &Parser, body: &str)
         .parse()
         .ok()?;
 
-    let fav = dom.get_element_by_id("fav")?.get(parser)?.as_tag()?;
-    gd.galleryInfo.favoriteSlot = get_first_child(fav, parser)
-        .and_then(|div| {
-            let fav_slot_regex = regex!(r#"\D+\d+\D+(\d+)"#);
-            fav_slot_regex
-                .captures(get_tag_attr(div, "style")?)
-                .map(|caps| (caps[1].parse().unwrap_or(2) - 2) / 19)
-        })
-        .unwrap_or(-2);
+    gd.galleryInfo.favoriteSlot = -2;
 
     gd.newerVersions = dom
         .get_element_by_id("gnd")

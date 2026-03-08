@@ -2,7 +2,7 @@ use crate::EhError;
 use crate::{EHGT_PREFIX, EX_PREFIX};
 use crate::{get_element_by_id, get_vdom_first_element_by_class_name};
 use crate::{get_first_element_by_class_name, query_childs_first_match_attr};
-use crate::{get_node_attr, get_node_handle_attr, regex};
+use crate::{get_node_handle_attr, regex};
 use anyhow::{Context, Result, bail};
 use quick_xml::escape::unescape;
 use serde::Serialize;
@@ -145,15 +145,10 @@ fn parse_gallery_info(node: &Node, parser: &Parser) -> Option<BaseGalleryInfo> {
         },
         Some(cn) => cn.inner_text(parser),
     };
-    let (posted, favorite_name) =
-        match get_element_by_id(node, parser, format!("posted_{gid}").as_str()) {
-            None => ("".to_string(), None),
-            Some(node) => (
-                node.inner_text(parser).trim().to_string(),
-                get_node_attr(node, "title")
-                    .map(|s| unescape(s).as_deref().unwrap_or(s).to_string()),
-            ),
-        };
+    let posted = match get_element_by_id(node, parser, format!("posted_{gid}").as_str()) {
+        None => "".to_string(),
+        Some(node) => node.inner_text(parser).trim().to_string(),
+    };
     let ir = get_first_element_by_class_name(node, parser, "ir")?
         .as_tag()?
         .attributes();
@@ -181,7 +176,7 @@ fn parse_gallery_info(node: &Node, parser: &Parser) -> Option<BaseGalleryInfo> {
         thumbWidth: thumb_width,
         thumbHeight: thumb_height,
         simpleLanguage: None,
-        favoriteSlot: if favorite_name.is_some() { 0 } else { -2 },
+        favoriteSlot: -2,
     })
 }
 

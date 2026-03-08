@@ -47,9 +47,7 @@ suspend fun GalleryDetail.fillInfo() {
     simpleTags = tagGroups.fastFlatMap(GalleryTagGroup::tags).map { (text, power, _) ->
         if (power == PowerStatus.Weak) "_$text" else text
     }
-    if (favoriteSlot == GalleryInfo.NOT_FAVORITED && EhDB.containLocalFavorites(gid)) {
-        favoriteSlot = GalleryInfo.LOCAL_FAVORITED
-    }
+    favoriteSlot = EhDB.getLocalFavoriteSlot(gid)
 }
 
 suspend fun GalleryDetail.filterComments() {

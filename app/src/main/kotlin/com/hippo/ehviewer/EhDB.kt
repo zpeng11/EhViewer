@@ -184,6 +184,12 @@ object EhDB {
         return dao.contains(gid)
     }
 
+    suspend fun getLocalFavoriteSlot(gid: Long): Int {
+        val dao = db.localFavoritesDao()
+        if (!dao.contains(gid)) return GalleryInfo.NOT_FAVORITED
+        return dao.getExtraSlot(gid) ?: GalleryInfo.LOCAL_FAVORITED
+    }
+
     suspend fun putLocalFavorites(galleryInfo: GalleryInfo) {
         putGalleryInfo(galleryInfo.asEntity())
         db.localFavoritesDao().upsert(LocalFavoriteInfo(galleryInfo.gid))

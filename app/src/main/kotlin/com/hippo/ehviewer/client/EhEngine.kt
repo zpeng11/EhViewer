@@ -434,9 +434,7 @@ object EhEngine {
         if (needApi) fillGalleryListByApi(this@fillInfo, url)
         if (filter) removeAllSuspend { filterUploader(it) || filterTag(it) || filterTagNamespace(it) }
         forEach {
-            if (it.favoriteSlot == GalleryInfo.NOT_FAVORITED && EhDB.containLocalFavorites(it.gid)) {
-                it.favoriteSlot = GalleryInfo.LOCAL_FAVORITED
-            }
+            it.favoriteSlot = EhDB.getLocalFavoriteSlot(it.gid)
             if (!needApi) it.generateSLang()
         }
     }
