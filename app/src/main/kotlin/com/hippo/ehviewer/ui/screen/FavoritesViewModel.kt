@@ -13,19 +13,19 @@ import androidx.paging.map
 import androidx.savedstate.compose.serialization.serializers.MutableStateSerializer
 import com.ehviewer.core.model.BaseGalleryInfo
 import com.hippo.ehviewer.EhDB
-import com.hippo.ehviewer.client.data.FavListUrlBuilder
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class LocalFavoritesRoute(
+    val folderSlot: Int? = null,
+    val keyword: String? = null,
+)
 
 class FavoritesViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
-    val urlBuilder by savedStateHandle.saved(MutableStateSerializer()) {
-        mutableStateOf(FavListUrlBuilder(favCat = FavListUrlBuilder.FAV_CAT_LOCAL))
-    }
-
-    init {
-        if (!urlBuilder.value.isLocal) {
-            urlBuilder.value = FavListUrlBuilder(favCat = FavListUrlBuilder.FAV_CAT_LOCAL, keyword = urlBuilder.value.keyword)
-        }
+    val route by savedStateHandle.saved(MutableStateSerializer()) {
+        mutableStateOf(LocalFavoritesRoute())
     }
 
     val localFavCount = EhDB.localFavCount
@@ -33,9 +33,9 @@ class FavoritesViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
 
     fun extraFavCount(slot: Int) = EhDB.localFavCount(slot)
 
-    val data = snapshotFlow { urlBuilder.value }.flatMapLatest { builder ->
-        val keywordNow = builder.keyword.orEmpty()
-        val extraSlot = builder.localExtraSlot
+    val data = snapshotFlow { route.value }.flatMapLatest { route ->
+        val keywordNow = route.keyword.orEmpty()
+        val extraSlot = route.folderSlot
         Pager(PagingConfig(20, jumpThreshold = 40)) {
             when {
                 extraSlot != null && keywordNow.isBlank() -> EhDB.localFavLazyList(extraSlot)

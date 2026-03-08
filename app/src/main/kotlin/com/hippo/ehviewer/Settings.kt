@@ -13,19 +13,11 @@ import com.ehviewer.core.network.EhCookieStore
 import com.ehviewer.core.preferences.DataStorePreferences
 import com.ehviewer.core.preferences.PrefDelegate
 import com.ehviewer.core.preferences.edit
-import com.hippo.ehviewer.client.data.FavListUrlBuilder
 import com.hippo.ehviewer.download.DownloadsFilterMode
 import com.hippo.ehviewer.download.SortMode
 import eu.kanade.tachiyomi.ui.reader.setting.OrientationType
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingModeType
 import java.util.Locale
-import kotlin.reflect.KProperty
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.map
 
 @Stable
@@ -62,16 +54,8 @@ fun <T> PrefDelegate<T>.asMutableState(): MutableState<T> {
 }
 
 object Settings : DataStorePreferences(null) {
-    @Suppress("ktlint:standard:backing-property-naming")
-    private val _favFlow = MutableSharedFlow<Unit>()
-    val favChangesFlow = _favFlow.debounce(1000)
-    var favCat by stringArrayPref("fav_cat", 10, "Favorites").emitTo(_favFlow)
-    var favCount by intArrayPref("fav_count", 10).emitTo(_favFlow)
-    var favCloudCount by intPref("fav_cloud", 0).emitTo(_favFlow)
-
     // Eh
     val gallerySite = intPref("gallery_site_2", 0).observed(::updateWhenGallerySiteChanges)
-    val defaultFavSlot = intPref("default_favorite_slot", -2)
     val theme = intPref("theme_2", -1).observed(::updateWhenThemeChanges)
     val blackDarkTheme = boolPref("black_dark_theme", false)
     val harmonizeCategoryColor = boolPref("harmonize_category_color", true)
@@ -143,7 +127,6 @@ object Settings : DataStorePreferences(null) {
     var appLinkVerifyTip by boolPref("app_link_verify_tip", false)
     var hasDefaultDownloadLabel by boolPref("has_default_download_label", false)
     var removeImageFiles by boolPref("include_pic", true)
-    var recentFavCat by intPref("recent_fav_cat", FavListUrlBuilder.FAV_CAT_LOCAL)
     var clipboardTextHashCode by intPref("clipboard_text_hash_code", 0)
     var requestNewsTime by intPref("request_news_time", 0).observed { updateWhenRequestNewsChanges() }
     var lastDawnDays by intPref("last_dawn_days", 0)
@@ -201,29 +184,4 @@ object Settings : DataStorePreferences(null) {
         }
     }
 
-    interface Delegate<R> {
-        fun changesFlow(): Flow<Unit>
-        operator fun getValue(thisRef: Any?, prop: KProperty<*>?): R
-        operator fun setValue(thisRef: Any?, prop: KProperty<*>?, value: R)
-    }
-
-    private fun intArrayPref(key: String, count: Int) = object : Delegate<IntArray> {
-        private val delegates = Array(count) { intPref("${key}_$it", 0) }
-        override fun changesFlow(): Flow<Unit> = delegates.asFlow().flatMapMerge { it.changesFlow() }.conflate()
-        override fun getValue(thisRef: Any?, prop: KProperty<*>?) = IntArray(delegates.size) { delegates[it].value }
-        override fun setValue(thisRef: Any?, prop: KProperty<*>?, value: IntArray) {
-            check(value.size == count)
-            edit { pref -> value.zip(delegates) { v, d -> pref[d] = v } }
-        }
-    }
-
-    private fun stringArrayPref(key: String, count: Int, defMetaValue: String) = object : Delegate<Array<String>> {
-        private val delegates = Array(count) { stringPref("${key}_$it", "$defMetaValue $it") }
-        override fun changesFlow(): Flow<Unit> = delegates.asFlow().flatMapMerge { it.changesFlow() }.conflate()
-        override fun getValue(thisRef: Any?, prop: KProperty<*>?) = Array(delegates.size) { delegates[it].value }
-        override fun setValue(thisRef: Any?, prop: KProperty<*>?, value: Array<String>) {
-            check(value.size == count)
-            edit { pref -> value.zip(delegates) { v, d -> pref[d] = v } }
-        }
-    }
 }

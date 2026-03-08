@@ -75,7 +75,6 @@ import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.asMutableState
-import com.hippo.ehviewer.client.data.FavListUrlBuilder
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
@@ -122,7 +121,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     var listMode by Settings.listMode.asMutableState()
 
     // Meta State
-    var urlBuilder by viewModel.urlBuilder
+    var route by viewModel.route
     var searchBarExpanded by rememberSaveable { mutableStateOf(false) }
     var searchBarOffsetY by remember { mutableIntStateOf(0) }
     var fabExpanded by remember { mutableStateOf(false) }
@@ -133,8 +132,8 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     val localFavoriteFolders = localFavoriteFoldersState.orEmpty()
 
     // Derived State
-    val keyword = urlBuilder.keyword
-    val selectedExtraSlot = urlBuilder.localExtraSlot
+    val keyword = route.keyword
+    val selectedExtraSlot = route.folderSlot
     val selectedFolder = localFavoriteFolders.firstOrNull { it.slot == selectedExtraSlot }
     val favCatName = selectedFolder?.name ?: localFavName
     val title = if (keyword.isNullOrBlank()) {
@@ -150,18 +149,16 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
 
     fun extraFavoriteSlotBadge(info: BaseGalleryInfo): Int? =
         info.favoriteSlot.takeIf {
-            urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL && it in LocalFavoriteFolder.VALID_SLOT_RANGE
+            selectedExtraSlot == null && it in LocalFavoriteFolder.VALID_SLOT_RANGE
         }
 
-    fun refresh(newUrlBuilder: FavListUrlBuilder = urlBuilder.copy(jumpTo = null, prev = null, next = null)) {
-        urlBuilder = newUrlBuilder
+    fun refresh(newRoute: LocalFavoritesRoute = route.copy()) {
+        route = newRoute
         data.refresh()
     }
 
     fun openLocalFolder(slot: Int? = null) {
-        val favCat = slot ?: FavListUrlBuilder.FAV_CAT_LOCAL
-        refresh(FavListUrlBuilder(favCat = favCat, keyword = keyword))
-        Settings.recentFavCat = favCat
+        refresh(LocalFavoritesRoute(folderSlot = slot, keyword = keyword))
         fabHidden = false
     }
 
@@ -218,11 +215,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         }
     }
 
-    LaunchedEffect(urlBuilder.favCat, localFavoriteFoldersState) {
-        if (!urlBuilder.isLocal) {
-            openLocalFolder()
-            return@LaunchedEffect
-        }
+    LaunchedEffect(selectedExtraSlot, localFavoriteFoldersState) {
         if (localFavoriteFoldersState != null && selectedExtraSlot != null && selectedFolder == null) {
             openLocalFolder()
         }
@@ -270,7 +263,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                 }
             }
             val deleted = deleteLocalFavoriteFolder(folder.slot)
-            if (deleted && urlBuilder.favCat == folder.slot) {
+            if (deleted && selectedExtraSlot == folder.slot) {
                 openLocalFolder()
             }
         }
@@ -296,7 +289,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                     openLocalFolder()
                     launch { sheetState.close() }
                 },
-                colors = listItemOnDrawerColor(urlBuilder.favCat == FavListUrlBuilder.FAV_CAT_LOCAL),
+                colors = listItemOnDrawerColor(selectedExtraSlot == null),
             )
             localFavoriteFolders.forEach { folder ->
                 val folderCount by remember(folder.slot) { viewModel.extraFavCount(folder.slot) }.collectAsState(0)
@@ -330,7 +323,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                         openLocalFolder(folder.slot)
                         launch { sheetState.close() }
                     },
-                    colors = listItemOnDrawerColor(urlBuilder.favCat == folder.slot),
+                    colors = listItemOnDrawerColor(selectedExtraSlot == folder.slot),
                 )
             }
         }
@@ -339,7 +332,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     DrawerHandle(!selectMode && !searchBarExpanded)
 
     SearchBarScreen(
-        onApplySearch = { refresh(FavListUrlBuilder(urlBuilder.favCat, it)) },
+        onApplySearch = { refresh(LocalFavoritesRoute(folderSlot = route.folderSlot, keyword = it)) },
         expanded = searchBarExpanded,
         onExpandedChange = {
             searchBarExpanded = it
@@ -455,7 +448,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             },
             searchBarOffsetY = { searchBarOffsetY },
             prefetchThumbnails = false,
-            scrollToTopOnRefresh = urlBuilder.favCat != FavListUrlBuilder.FAV_CAT_LOCAL,
+            scrollToTopOnRefresh = selectedExtraSlot != null,
             onRefresh = { refresh() },
             onLoading = { searchBarOffsetY = 0 },
         )
