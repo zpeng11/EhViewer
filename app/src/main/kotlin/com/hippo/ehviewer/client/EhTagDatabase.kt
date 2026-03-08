@@ -19,6 +19,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import arrow.core.Either
 import com.ehviewer.core.files.metadataOrNull
 import com.ehviewer.core.files.read
@@ -61,7 +62,14 @@ object EhTagDatabase : CoroutineScope {
     )
     private lateinit var tagGroups: Map<String, Map<String, String>>
     private val updateLock = Mutex()
-    var initialized by mutableStateOf(false)
+    private var initializedState by Snapshot.withMutableSnapshot { mutableStateOf(false) }
+    var initialized: Boolean
+        get() = initializedState
+        private set(value) {
+            Snapshot.withMutableSnapshot {
+                initializedState = value
+            }
+        }
 
     fun getTranslation(prefix: String? = NAMESPACE_PREFIX, tag: String?): String? = tagGroups[prefix]?.get(tag)?.trim()?.ifEmpty { null }
 

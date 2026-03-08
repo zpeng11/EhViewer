@@ -19,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
@@ -34,12 +33,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.fork.SwipeToDismissBox
+import androidx.compose.material3.fork.SwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -223,6 +227,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
 
     ProvideSideSheetContent { sheetState ->
         val localFavCount by viewModel.localFavCount.collectAsState(0)
+        val positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
 
         suspend fun promptCreateExtraFolder() {
             val name = with(dialogState) {
@@ -256,7 +261,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             renameLocalFavoriteFolder(folder.slot, updatedName)
         }
 
-        suspend fun promptDeleteExtraFolder(folder: LocalFavoriteFolder) {
+        suspend fun promptDeleteExtraFolder(folder: LocalFavoriteFolder): Boolean {
             with(dialogState) {
                 awaitConfirmationOrCancel(confirmText = R.string.delete) {
                     Text(text = appCtx.getString(R.string.delete_favorite_folder, folder.name))
@@ -266,6 +271,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             if (deleted && selectedExtraSlot == folder.slot) {
                 openLocalFolder()
             }
+            return deleted
         }
 
         TopAppBar(
@@ -292,39 +298,56 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                 colors = listItemOnDrawerColor(selectedExtraSlot == null),
             )
             localFavoriteFolders.forEach { folder ->
-                val folderCount by remember(folder.slot) { viewModel.extraFavCount(folder.slot) }.collectAsState(0)
-                ListItem(
-                    headlineContent = { Text(text = "[${folder.slot}] ${folder.name}") },
-                    trailingContent = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Text(text = folderCount.toString(), style = MaterialTheme.typography.bodyLarge)
-                            IconButton(
-                                onClick = {
-                                    launch { dialogState.runCatching { promptRenameExtraFolder(folder) } }
-                                },
-                                shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(imageVector = Icons.Default.Edit, contentDescription = null)
-                            }
-                            IconButton(
-                                onClick = {
-                                    launch { dialogState.runCatching { promptDeleteExtraFolder(folder) } }
-                                },
-                                shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(imageVector = Icons.Default.Delete, contentDescription = null)
-                            }
-                        }
-                    },
-                    modifier = Modifier.clip(CardDefaults.shape).clickable {
-                        openLocalFolder(folder.slot)
-                        launch { sheetState.close() }
-                    },
-                    colors = listItemOnDrawerColor(selectedExtraSlot == folder.slot),
-                )
+                key(folder.slot) {
+                    val folderCount by remember(folder.slot) { viewModel.extraFavCount(folder.slot) }.collectAsState(0)
+                    val dismissState = remember {
+                        SwipeToDismissBoxState(
+                            initialValue = SwipeToDismissBoxValue.Settled,
+                            positionalThreshold = positionalThreshold,
+                        )
+                    }
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        backgroundContent = {},
+                        enableDismissFromStartToEnd = false,
+                        onDismiss = {
+                            dialogState.runCatching { promptDeleteExtraFolder(folder) }
+                                .onSuccess { deleted ->
+                                    if (!deleted) {
+                                        dismissState.reset()
+                                    }
+                                }
+                                .onFailure {
+                                    dismissState.reset()
+                                }
+                        },
+                    ) {
+                        ListItem(
+                            headlineContent = { Text(text = "[${folder.slot}] ${folder.name}") },
+                            trailingContent = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    Text(text = folderCount.toString(), style = MaterialTheme.typography.bodyLarge)
+                                    IconButton(
+                                        onClick = {
+                                            launch { dialogState.runCatching { promptRenameExtraFolder(folder) } }
+                                        },
+                                        shapes = IconButtonDefaults.shapes(),
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Edit, contentDescription = null)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.clip(CardDefaults.shape).clickable {
+                                openLocalFolder(folder.slot)
+                                launch { sheetState.close() }
+                            },
+                            colors = listItemOnDrawerColor(selectedExtraSlot == folder.slot),
+                        )
+                    }
+                }
             }
         }
     }

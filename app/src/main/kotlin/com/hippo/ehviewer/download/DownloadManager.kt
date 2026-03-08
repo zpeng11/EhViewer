@@ -22,6 +22,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.Snapshot
 import arrow.fx.coroutines.parMapNotNull
 import com.ehviewer.core.data.model.asEntity
 import com.ehviewer.core.database.model.DownloadArtist
@@ -74,8 +75,10 @@ object DownloadManager {
 
     private val allInfoMap = allInfoList.associateBy { it.gid } as MutableMap<Long, DownloadInfo>
 
-    val labelList = mutableStateListOf<DownloadLabel>().apply {
-        addAll(runAssertingNotMainThread { EhDB.getAllDownloadLabelList() })
+    val labelList = Snapshot.withMutableSnapshot {
+        mutableStateListOf<DownloadLabel>().apply {
+            addAll(runAssertingNotMainThread { EhDB.getAllDownloadLabelList() })
+        }
     }
 
     private val mutableNotifyFlow = MutableSharedFlow<DownloadInfo>(extraBufferCapacity = 1)
@@ -165,8 +168,10 @@ object DownloadManager {
     suspend fun addDownloadLabel(downloadLabelList: List<DownloadLabel>) {
         downloadLabelList.forEach { label ->
             if (!containLabel(label.label)) {
-                label.position = labelList.size
-                labelList.add(EhDB.addDownloadLabel(label))
+                Snapshot.withMutableSnapshot {
+                    label.position = labelList.size
+                    labelList.add(EhDB.addDownloadLabel(label))
+                }
             }
         }
     }
@@ -225,15 +230,20 @@ object DownloadManager {
 
     suspend fun addLabel(label: String?) {
         if (label == null || containLabel(label)) return
-        labelList.add(EhDB.addDownloadLabel(DownloadLabel(label, labelList.size)))
+        Snapshot.withMutableSnapshot {
+            labelList.add(EhDB.addDownloadLabel(DownloadLabel(label, labelList.size)))
+        }
     }
 
     suspend fun renameLabel(from: String, to: String) {
         val index = labelList.indexOfFirst { it.label == from }
         if (index == -1) return
-        val exist = labelList.removeAt(index)
-        val renamed = exist.copy(label = to)
-        labelList.add(index, renamed)
+        val renamed = Snapshot.withMutableSnapshot {
+            val exist = labelList.removeAt(index)
+            val updated = exist.copy(label = to)
+            labelList.add(index, updated)
+            updated
+        }
         EhDB.updateDownloadLabel(renamed)
         val updated = sortMutex.withLock {
             allInfoList.filter {
@@ -246,15 +256,17 @@ object DownloadManager {
     }
 
     suspend fun deleteLabel(label: String) {
-        with(labelList) {
-            val index = indexOfFirst { it.label == label }
-            if (index == -1) return
-            val item = get(index)
-            EhDB.removeDownloadLabel(item)
-            subList(index + 1, size).forEach {
-                it.position--
+        Snapshot.withMutableSnapshot {
+            with(labelList) {
+                val index = indexOfFirst { it.label == label }
+                if (index == -1) return
+                val item = get(index)
+                EhDB.removeDownloadLabel(item)
+                subList(index + 1, size).forEach {
+                    it.position--
+                }
+                removeAt(index)
             }
-            removeAt(index)
         }
         val updated = sortMutex.withLock {
             allInfoList.filter {

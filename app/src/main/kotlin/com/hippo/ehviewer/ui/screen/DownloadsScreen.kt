@@ -62,7 +62,6 @@ import androidx.compose.material3.fork.SwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -218,10 +217,10 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
     val artistList = remember(downloadsCountGroupByArtist) {
         downloadsCountGroupByArtist.keys.mapNotNull { artist -> artist?.let { it to it } }
     }
-    val labelList by remember {
-        derivedStateOf {
-            DownloadManager.labelList.map { it.id!! to it.label }
-        }
+    val labelList = if (isDownloadManagerInitialized) {
+        DownloadManager.labelList.map { it.id!! to it.label }
+    } else {
+        emptyList()
     }
     val groupList = when (filterMode) {
         DownloadsFilterMode.CUSTOM -> labelList
