@@ -197,9 +197,6 @@ fn parse_detail(gd: &mut GalleryDetail, dom: &VDom, parser: &Parser, body: &str)
     let fav = dom.get_element_by_id("fav")?.get(parser)?.as_tag()?;
     gd.galleryInfo.favoriteSlot = get_first_child(fav, parser)
         .and_then(|div| {
-            gd.galleryInfo.favoriteName = get_tag_attr(div, "title")
-                .and_then(|s| unescape(s).ok())
-                .map(|s| s.to_string());
             let fav_slot_regex = regex!(r#"\D+\d+\D+(\d+)"#);
             fav_slot_regex
                 .captures(get_tag_attr(div, "style")?)

@@ -37,8 +37,6 @@ open class BaseGalleryInfo(
     override var thumbHeight: Int = 0,
     override var simpleLanguage: String? = null,
     override var favoriteSlot: Int = NOT_FAVORITED,
-    override var favoriteName: String? = null,
-    override var favoriteNote: String? = null,
 ) : GalleryInfo {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -61,8 +59,6 @@ open class BaseGalleryInfo(
         if (uploader != other.uploader) return false
         if (simpleTags != other.simpleTags) return false
         if (simpleLanguage != other.simpleLanguage) return false
-        if (favoriteName != other.favoriteName) return false
-        if (favoriteNote != other.favoriteNote) return false
 
         return true
     }
@@ -85,8 +81,6 @@ open class BaseGalleryInfo(
         result = 31 * result + (uploader?.hashCode() ?: 0)
         result = 31 * result + (simpleTags?.hashCode() ?: 0)
         result = 31 * result + (simpleLanguage?.hashCode() ?: 0)
-        result = 31 * result + (favoriteName?.hashCode() ?: 0)
-        result = 31 * result + (favoriteNote?.hashCode() ?: 0)
         return result
     }
 }

@@ -33,8 +33,6 @@ interface GalleryInfo {
     var thumbHeight: Int
     var simpleLanguage: String?
     var favoriteSlot: Int
-    var favoriteName: String?
-    var favoriteNote: String?
 
     fun generateSLang() {
         simpleLanguage = simpleTags?.let { generateSLangFromTags(it) }

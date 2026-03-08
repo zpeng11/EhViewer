@@ -64,9 +64,4 @@ class GalleryEntity(
     @Ignore
     override var thumbHeight: Int = 0
 
-    @Ignore
-    override var favoriteName: String? = null
-
-    @Ignore
-    override var favoriteNote: String? = null
 }

@@ -30,8 +30,6 @@ pub struct BaseGalleryInfo {
     pub thumbHeight: i32,
     pub simpleLanguage: Option<String>,
     pub favoriteSlot: i32,
-    pub favoriteName: Option<String>,
-    pub favoriteNote: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -166,11 +164,6 @@ fn parse_gallery_info(node: &Node, parser: &Parser) -> Option<BaseGalleryInfo> {
             None => (None, false, 0),
             Some(node) => parse_uploader_and_pages(&node.get(parser)?.inner_html(parser)),
         };
-    let favorite_note =
-        get_element_by_id(node, parser, format!("favnote_{gid}").as_str()).map(|e| {
-            let str = e.inner_text(parser);
-            unescape(&str).as_deref().unwrap_or(&str).to_string()
-        });
     Some(BaseGalleryInfo {
         gid,
         token,
@@ -189,8 +182,6 @@ fn parse_gallery_info(node: &Node, parser: &Parser) -> Option<BaseGalleryInfo> {
         thumbHeight: thumb_height,
         simpleLanguage: None,
         favoriteSlot: if favorite_name.is_some() { 0 } else { -2 },
-        favoriteName: favorite_name,
-        favoriteNote: favorite_note,
     })
 }
 
