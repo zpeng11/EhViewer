@@ -28,7 +28,6 @@ object EhUrl {
     const val DOMAIN_E = "e-hentai.org"
     const val HOST_EX = "https://$DOMAIN_EX/"
     const val API_EX = "https://s.exhentai.org/api.php"
-    const val FAV_PATH = "favorites.php"
     const val WATCHED_PATH = "watched"
     const val URL_UCONFIG_EX = HOST_EX + "uconfig.php"
     const val URL_MY_TAGS_EX = HOST_EX + "mytags"
@@ -116,12 +115,6 @@ object EhUrl {
 
     fun getPageUrl(gid: Long, index: Int, pToken: String, nl: String? = null) = ehUrl(listOf("s", pToken, "$gid-${index + 1}")) {
         addQueryParameterIfNotBlank("nl", nl)
-    }.buildString()
-
-    fun getAddFavorites(gid: Long, token: String) = ehUrl("gallerypopups.php") {
-        addQueryParameter("gid", "$gid")
-        addQueryParameter("t", token)
-        addQueryParameter("act", "addfav")
     }.buildString()
 
     fun getArchiveUrl(gid: Long, token: String) = ehUrl("archiver.php") {
