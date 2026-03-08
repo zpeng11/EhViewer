@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.ShapeDefaults
@@ -121,10 +119,6 @@ fun DownloadCard(
                             favoriteSlot = favoriteSlot.takeIf { it in LocalFavoriteFolder.VALID_SLOT_RANGE },
                         )
                     }
-                    Icon(
-                        imageVector = Icons.Default.DownloadDone,
-                        contentDescription = null,
-                    )
                 }
             }
         }

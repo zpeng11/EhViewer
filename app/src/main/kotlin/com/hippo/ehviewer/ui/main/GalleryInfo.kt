@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
@@ -49,7 +48,6 @@ import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.listThumbGenerator
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.client.EhUtils
-import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.util.FavouriteStatusRouter
 
 @Composable
@@ -126,14 +124,6 @@ fun GalleryInfoListItem(
                     // Place the rating near the uploader text as there's more visual space
                     GalleryListCardRating(rating = info.rating, modifier = Modifier.padding(top = 1.dp, bottom = 3.dp))
                     Spacer(modifier = Modifier.weight(1f))
-                    val downloaded by DownloadManager.collectContainDownloadInfo(info.gid)
-                    if (downloaded) {
-                        Icon(
-                            Icons.Default.Download,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
                     info.simpleLanguage?.let {
                         Text(text = it)
                     }
