@@ -427,6 +427,7 @@ object EhEngine {
 
     private suspend fun MutableList<BaseGalleryInfo>.fillInfo(url: String, filter: Boolean = false) = with(EhFilter) {
         if (filter) removeAllSuspend { filterTitle(it) || filterUploader(it) }
+        fillTitleJpnFromCache()
         val hasTags = any { !it.simpleTags.isNullOrEmpty() }
         val hasPages = any { it.pages != 0 }
         val hasRated = any { it.rated }
@@ -436,6 +437,22 @@ object EhEngine {
         forEach {
             it.favoriteSlot = EhDB.getLocalFavoriteSlot(it.gid)
             if (!needApi) it.generateSLang()
+        }
+    }
+
+    private suspend fun MutableList<BaseGalleryInfo>.fillTitleJpnFromCache() {
+        if (!Settings.showJpnTitle.value) return
+        val missingTitleJpnGids = asSequence()
+            .filter { it.titleJpn.isNullOrEmpty() }
+            .map(BaseGalleryInfo::gid)
+            .distinct()
+            .toList()
+        if (missingTitleJpnGids.isEmpty()) return
+        val galleryMap = EhDB.getGalleryInfoMap(missingTitleJpnGids)
+        forEach {
+            if (it.titleJpn.isNullOrEmpty()) {
+                it.titleJpn = galleryMap[it.gid]?.titleJpn
+            }
         }
     }
 

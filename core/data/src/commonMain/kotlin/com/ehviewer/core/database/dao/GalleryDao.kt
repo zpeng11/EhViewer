@@ -14,6 +14,9 @@ interface GalleryDao {
     @Query("SELECT * FROM GALLERIES WHERE GID = :gid")
     suspend fun load(gid: Long): GalleryEntity?
 
+    @Query("SELECT * FROM GALLERIES WHERE GID IN (:gids)")
+    suspend fun load(gids: List<Long>): List<GalleryEntity>
+
     @Query("SELECT * FROM GALLERIES")
     suspend fun list(): List<GalleryEntity>
 

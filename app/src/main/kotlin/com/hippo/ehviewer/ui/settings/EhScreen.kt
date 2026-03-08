@@ -99,6 +99,11 @@ fun AnimatedVisibilityScope.EhScreen(navigator: DestinationsNavigator) = Screen(
                 summary = stringResource(id = R.string.settings_eh_show_reading_progress_summary),
                 state = Settings.showReadingProgress.asMutableState(),
             )
+            SwitchPreference(
+                title = stringResource(id = R.string.settings_eh_show_jpn_title),
+                summary = stringResource(id = R.string.settings_eh_show_jpn_title_summary),
+                state = Settings.showJpnTitle.asMutableState(),
+            )
             if (EhTagDatabase.translatable) {
                 SwitchPreference(
                     title = stringResource(id = R.string.settings_eh_show_tag_translations),

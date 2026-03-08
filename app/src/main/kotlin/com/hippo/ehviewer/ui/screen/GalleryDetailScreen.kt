@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.util.fastJoinToString
 import androidx.lifecycle.viewModelScope
+import com.ehviewer.core.data.model.asEntity
 import com.ehviewer.core.data.model.findBaseInfo
 import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.files.delete
@@ -50,6 +51,7 @@ import com.ehviewer.core.util.launchIO
 import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.EhApplication.Companion.imageCache
+import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhEngine
 import com.hippo.ehviewer.client.EhUrl
@@ -141,6 +143,7 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                     getDetailError = e.displayString()
                 }.getOrNull()
             galleryDetail?.let {
+                withIOContext { EhDB.putGalleryInfo(it.asEntity()) }
                 galleryInfo = it
             }
         }

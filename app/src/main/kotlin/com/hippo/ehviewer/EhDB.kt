@@ -68,6 +68,11 @@ object EhDB {
         db.galleryDao().update(galleryInfoList)
     }
 
+    suspend fun getGalleryInfoMap(gids: Collection<Long>): Map<Long, GalleryEntity> {
+        if (gids.isEmpty()) return emptyMap()
+        return db.galleryDao().load(gids.distinct()).associateBy(GalleryEntity::gid)
+    }
+
     fun getReadProgressFlow(gid: Long) = db.progressDao().getPageFlow(gid)
     suspend fun getReadProgress(gid: Long) = db.progressDao().getPage(gid)
     suspend fun putReadProgress(gid: Long, page: Int) = db.progressDao().upsert(ProgressInfo(gid, page))
