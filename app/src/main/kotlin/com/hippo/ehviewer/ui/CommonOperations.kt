@@ -242,7 +242,7 @@ private fun navToReader(args: ReaderScreenArgs) = nav.navigate(ReaderScreenDesti
 
 context(_: DialogState, _: MainActivity, _: DestinationsNavigator)
 suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
-    val downloaded = DownloadManager.getDownloadState(info.gid) != DownloadInfo.STATE_INVALID
+    val downloaded = DownloadManager.containDownloadInfo(info.gid)
     val favorited = EhDB.containLocalFavorites(info.gid)
     data class GalleryAction(
         val icon: ImageVector,

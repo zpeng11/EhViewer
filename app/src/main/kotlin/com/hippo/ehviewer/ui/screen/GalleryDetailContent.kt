@@ -70,7 +70,6 @@ import arrow.fx.coroutines.parMap
 import arrow.fx.coroutines.parZip
 import com.ehviewer.core.data.model.asGalleryDetail
 import com.ehviewer.core.data.model.findBaseInfo
-import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.database.model.Filter
 import com.ehviewer.core.database.model.FilterMode
 import com.ehviewer.core.i18n.R
@@ -186,8 +185,7 @@ fun GalleryDetailContent(
     } else {
         stringResource(R.string.read_from, startPage + 1)
     }
-    val downloadState by DownloadManager.collectDownloadState(galleryInfo.gid)
-    val hasLocalEntry = downloadState != DownloadInfo.STATE_INVALID
+    val hasLocalEntry by DownloadManager.collectContainDownloadInfo(galleryInfo.gid)
     val downloadButtonText = stringResource(R.string.delete_downloads)
     fun onReadButtonClick() {
         if (galleryDetail != null || hasLocalEntry) {

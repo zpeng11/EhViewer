@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material.icons.filled.MoreVert
@@ -765,15 +764,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                     DownloadManager.sortDownloads(mode)
                     invalidateKey = !invalidateKey
                 }
-            }
-            onClick(Icons.Default.FilterList) {
-                val downloadStates = contextOf<Context>().resources.getStringArray(com.hippo.ehviewer.R.array.download_state).toList()
-                val state = awaitSingleChoice(
-                    downloadStates,
-                    filterState.state + 1,
-                    R.string.download_filter,
-                ) - 1
-                filterState = filterState.copy(state = state)
             }
         } else {
             onClick(Icons.Default.DoneAll, autoClose = false) {

@@ -17,7 +17,6 @@ package com.hippo.ehviewer.download
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -30,6 +29,7 @@ import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.database.model.DownloadLabel
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.find
+import com.ehviewer.core.files.isDirectory
 import com.ehviewer.core.files.toOkioPath
 import com.ehviewer.core.files.toUri
 import com.ehviewer.core.model.BaseGalleryInfo
@@ -117,25 +117,16 @@ object DownloadManager {
         return readFromCache(gid)?.let { it.gid == info.gid && it.token == info.token } == true
     }
 
-    fun getDownloadState(gid: Long): Int = allInfoMap[gid]?.state ?: DownloadInfo.STATE_INVALID
-
-    @Stable
-    @Composable
-    fun collectDownloadState(gid: Long): State<Int> = remember {
-        notifyFlow.transform { if (it.gid == gid) emit(getDownloadState(gid)) }
-    }.collectAsState(getDownloadState(gid))
+    fun canExportDownload(gid: Long): Boolean {
+        val info = getDownloadInfo(gid) ?: return false
+        return info.archiveFile != null || info.downloadDir?.isDirectory == true
+    }
 
     @Stable
     @Composable
     fun collectContainDownloadInfo(gid: Long): State<Boolean> = remember {
         notifyFlow.transform { if (it.gid == gid) emit(containDownloadInfo(gid)) }
     }.collectAsState(containDownloadInfo(gid))
-
-    @Stable
-    @Composable
-    inline fun <T> updatedDownloadInfo(info: DownloadInfo, crossinline transform: @DisallowComposableCalls DownloadInfo.() -> T): T = remember {
-        notifyFlow.transform { if (it.gid == info.gid) emit(transform(it)) }
-    }.collectAsState(transform(info)).value
 
     @Stable
     @Composable
@@ -159,9 +150,6 @@ object DownloadManager {
             val comparator = sortMode.comparator()
             downloadInfoList.forEach { info ->
                 if (containDownloadInfo(info.gid)) return@forEach
-                if (info.state == DownloadInfo.STATE_WAIT || info.state == DownloadInfo.STATE_DOWNLOAD) {
-                    info.state = DownloadInfo.STATE_NONE
-                }
                 allInfoList.insertWith(info, comparator)
                 allInfoMap[info.gid] = info
                 added += info
@@ -184,9 +172,7 @@ object DownloadManager {
     }
 
     suspend fun restoreDownload(galleryInfo: BaseGalleryInfo, dirname: String) {
-        val info = DownloadInfo(galleryInfo.asEntity(), dirname).apply {
-            state = DownloadInfo.STATE_NONE
-        }
+        val info = DownloadInfo(galleryInfo.asEntity(), dirname)
         sortMutex.withLock {
             allInfoList.insertWith(info, sortMode.comparator())
             allInfoMap[galleryInfo.gid] = info

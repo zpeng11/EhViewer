@@ -36,7 +36,6 @@ import androidx.compose.ui.util.fastJoinToString
 import androidx.lifecycle.viewModelScope
 import com.ehviewer.core.data.model.asEntity
 import com.ehviewer.core.data.model.findBaseInfo
-import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.toOkioPath
 import com.ehviewer.core.i18n.R
@@ -271,7 +270,7 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                             onClick = {
                                 launchIO {
                                     val downloadInfo = DownloadManager.getDownloadInfo(gid)
-                                    val canExport = downloadInfo?.state == DownloadInfo.STATE_FINISH
+                                    val canExport = DownloadManager.canExportDownload(gid)
                                     if (!canExport) {
                                         awaitConfirmationOrCancel(
                                             showCancelButton = false,
@@ -283,7 +282,7 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                                             CreateDocument("application/vnd.comicbook+zip"),
                                             EhUtils.getSuitableTitle(info) + ".cbz",
                                         )
-                                        val dirname = downloadInfo.dirname
+                                        val dirname = downloadInfo?.dirname
                                         if (uri != null && dirname != null) {
                                             val file = uri.toOkioPath()
                                             val msg = runCatching {

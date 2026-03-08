@@ -177,15 +177,6 @@
         <item>@string/page_count_desc</item>
     </string-array>
 
-    <string-array name="download_state">
-        <item>@string/download_all</item>
-        <item>@string/download_state_none</item>
-        <item>@string/download_state_wait</item>
-        <item>@string/download_state_downloading</item>
-        <item>@string/download_state_finish</item>
-        <item>@string/download_state_failed</item>
-    </string-array>
-
     <string-array name="viewers_selector">
         <item>@string/label_default</item>
         <item>@string/left_to_right_viewer</item>

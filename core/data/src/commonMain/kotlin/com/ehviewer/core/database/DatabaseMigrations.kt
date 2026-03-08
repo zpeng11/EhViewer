@@ -133,3 +133,7 @@ class Schema23to24 : AutoMigrationSpec {
         connection.execSQL("UPDATE LOCAL_FAVORITES SET EXTRA_FAVORITE_SLOT = NULL WHERE EXTRA_FAVORITE_SLOT < 1 OR EXTRA_FAVORITE_SLOT > 9")
     }
 }
+
+@DeleteColumn(tableName = "DOWNLOADS", columnName = "STATE")
+@DeleteColumn(tableName = "DOWNLOADS", columnName = "LEGACY")
+class Schema24to25 : AutoMigrationSpec
