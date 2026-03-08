@@ -119,6 +119,7 @@ import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ktbuilder.executeIn
 import com.hippo.ehviewer.ktbuilder.imageRequest
 import com.hippo.ehviewer.ui.GalleryInfoBottomSheet
+import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.MainActivity
 import com.hippo.ehviewer.ui.confirmRemoveDownload
 import com.hippo.ehviewer.ui.destinations.GalleryCommentsScreenDestination
@@ -480,8 +481,9 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
     ) {
         val favSlot by FavouriteStatusRouter.collectAsState(galleryDetail) { it }
+        val favoriteNameForSlot = rememberFavoriteNameResolver()
         val favButtonText = if (favSlot != NOT_FAVORITED) {
-            galleryDetail.favoriteName ?: stringResource(id = R.string.local_favorites)
+            favoriteNameForSlot(favSlot) ?: stringResource(id = R.string.local_favorites)
         } else {
             stringResource(id = R.string.not_favorited)
         }

@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,11 +27,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.GalleryDetail
-import com.ehviewer.core.model.GalleryInfo.Companion.LOCAL_FAVORITED
+import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhUrl
 import com.hippo.ehviewer.client.EhUtils
 import com.hippo.ehviewer.client.thumbUrl
+import com.hippo.ehviewer.util.FavouriteStatusRouter
 import com.hippo.ehviewer.ui.screen.navWithUrl
 import com.hippo.ehviewer.util.addTextToClipboard
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -38,7 +40,7 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 private const val INDEX_URL = 2
 private const val INDEX_PARENT = 9
 
-private fun GalleryDetail.content() = arrayOf(
+private fun GalleryDetail.content(favoriteSlot: Int, favoriteName: String?) = arrayOf(
     R.string.key_gid to "$gid",
     R.string.key_token to token,
     R.string.key_url to EhUrl.getGalleryDetailUrl(gid, token),
@@ -54,7 +56,7 @@ private fun GalleryDetail.content() = arrayOf(
     R.string.key_pages to pages.toString(),
     R.string.key_size to size,
     R.string.key_favorite_count to favoriteCount.toString(),
-    R.string.key_favorited to (favoriteSlot > LOCAL_FAVORITED).toString(),
+    R.string.key_favorited to (favoriteSlot != NOT_FAVORITED).toString(),
     R.string.key_rating_count to ratingCount.toString(),
     R.string.key_rating to rating.toString(),
     R.string.key_torrents to torrentCount.toString(),
@@ -71,7 +73,10 @@ fun GalleryInfoBottomSheet(detail: GalleryDetail) {
             modifier = Modifier.align(Alignment.CenterHorizontally),
             style = MaterialTheme.typography.titleLarge,
         )
-        val data = remember(detail) { detail.content() }
+        val favoriteSlot by FavouriteStatusRouter.collectAsState(detail) { it }
+        val favoriteNameForSlot = rememberFavoriteNameResolver()
+        val favoriteName = favoriteNameForSlot(favoriteSlot)
+        val data = remember(detail, favoriteSlot, favoriteName) { detail.content(favoriteSlot, favoriteName) }
         ProvideTextStyle(MaterialTheme.typography.labelLarge) {
             LazyColumn(contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues()) {
                 itemsIndexed(data) { index, (key, content) ->

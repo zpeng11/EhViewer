@@ -257,12 +257,10 @@ object EhDB {
         db.historyDao().upsert(HistoryInfo(galleryInfo.gid))
     }
 
-    suspend fun updateFavoriteSlot(gid: Long, slot: Int, name: String? = null, note: String? = null) {
+    suspend fun updateFavoriteSlot(gid: Long, slot: Int) {
         val dao = db.galleryDao()
         dao.load(gid)?.let {
             it.favoriteSlot = slot
-            it.favoriteName = name
-            it.favoriteNote = note
             dao.update(it)
         }
     }

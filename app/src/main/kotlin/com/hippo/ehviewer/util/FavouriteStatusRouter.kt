@@ -38,21 +38,19 @@ object FavouriteStatusRouter {
     data class FavoriteStatusChange(
         val gid: Long,
         val favoriteSlot: Int,
-        val favoriteName: String?,
-        val favoriteNote: String?,
     )
 
     suspend fun notify(galleryInfo: GalleryInfo) {
-        notify(galleryInfo.gid, galleryInfo.favoriteSlot, galleryInfo.favoriteName, galleryInfo.favoriteNote)
+        notify(galleryInfo.gid, galleryInfo.favoriteSlot)
     }
 
-    suspend fun notify(gid: Long, favoriteSlot: Int, favoriteName: String?, favoriteNote: String? = null) {
-        globalFlow.emit(FavoriteStatusChange(gid, favoriteSlot, favoriteName, favoriteNote))
+    suspend fun notify(gid: Long, favoriteSlot: Int) {
+        globalFlow.emit(FavoriteStatusChange(gid, favoriteSlot))
     }
 
-    suspend fun notify(gids: LongArray, favoriteSlot: Int, favoriteName: String?, favoriteNote: String? = null) {
+    suspend fun notify(gids: LongArray, favoriteSlot: Int) {
         gids.forEach { gid ->
-            notify(gid, favoriteSlot, favoriteName, favoriteNote)
+            notify(gid, favoriteSlot)
         }
     }
 
@@ -61,11 +59,9 @@ object FavouriteStatusRouter {
     val globalFlow = MutableSharedFlow<FavoriteStatusChange>(extraBufferCapacity = 16).apply {
         listenerScope.launch {
             collect { change ->
-                EhDB.updateFavoriteSlot(change.gid, change.favoriteSlot, change.favoriteName, change.favoriteNote)
+                EhDB.updateFavoriteSlot(change.gid, change.favoriteSlot)
                 DownloadManager.getDownloadInfo(change.gid)?.apply {
                     favoriteSlot = change.favoriteSlot
-                    favoriteName = change.favoriteName
-                    favoriteNote = change.favoriteNote
                 }
             }
         }
@@ -87,8 +83,6 @@ object FavouriteStatusRouter {
                 realList.forEach { item ->
                     if (item.gid == change.gid) {
                         item.favoriteSlot = change.favoriteSlot
-                        item.favoriteName = change.favoriteName
-                        item.favoriteNote = change.favoriteNote
                     }
                 }
             }

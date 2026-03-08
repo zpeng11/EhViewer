@@ -64,6 +64,7 @@ fun GalleryInfoListItem(
     modifier: Modifier = Modifier,
     isInFavScene: Boolean = false,
     localOnlyThumb: Boolean = false,
+    favoriteName: String? = info.favoriteName,
     extraFavoriteSlotBadge: Int? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) = CrystalCard(
@@ -116,7 +117,7 @@ fun GalleryInfoListItem(
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp).align(Alignment.CenterVertically),
                             )
-                            info.favoriteName?.let {
+                            favoriteName?.let {
                                 Text(text = it, modifier = Modifier.alignByBaseline())
                             }
                         }

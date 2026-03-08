@@ -196,7 +196,6 @@ suspend fun addToFavorites(galleryInfoList: Collection<GalleryInfo>, extraSlot: 
     FavouriteStatusRouter.notify(
         gids = updatedGids,
         favoriteSlot = folder.slot,
-        favoriteName = folder.name,
     )
     return updatedGids.size
 }
@@ -231,7 +230,6 @@ suspend fun renameLocalFavoriteFolder(slot: Int, name: String): Boolean {
     FavouriteStatusRouter.notify(
         gids = result.affectedGids,
         favoriteSlot = result.folder.slot,
-        favoriteName = result.folder.name,
     )
     return true
 }
@@ -241,7 +239,6 @@ suspend fun deleteLocalFavoriteFolder(slot: Int): Boolean {
     FavouriteStatusRouter.notify(
         gids = affectedGids,
         favoriteSlot = LOCAL_FAVORITED,
-        favoriteName = appCtx.getString(R.string.local_favorites),
     )
     return true
 }
@@ -252,7 +249,6 @@ suspend fun moveLocalFavoritesToExtraFolder(gids: LongArray, slot: Int): Int {
     FavouriteStatusRouter.notify(
         gids = updatedGids,
         favoriteSlot = slot,
-        favoriteName = folder.name,
     )
     return updatedGids.size
 }
@@ -273,7 +269,6 @@ suspend fun moveLocalFavoritesToExtraFolder(galleryInfoList: Collection<GalleryI
     FavouriteStatusRouter.notify(
         gids = updatedGids,
         favoriteSlot = folder.slot,
-        favoriteName = folder.name,
     )
     return updatedGids.size
 }
@@ -283,7 +278,6 @@ suspend fun moveLocalFavoritesToDefaultFolder(gids: LongArray): Int {
     FavouriteStatusRouter.notify(
         gids = updatedGids,
         favoriteSlot = LOCAL_FAVORITED,
-        favoriteName = appCtx.getString(R.string.local_favorites),
     )
     return updatedGids.size
 }
@@ -304,7 +298,6 @@ suspend fun moveLocalFavoritesToDefaultFolder(galleryInfoList: Collection<Galler
     FavouriteStatusRouter.notify(
         gids = updatedGids,
         favoriteSlot = LOCAL_FAVORITED,
-        favoriteName = localFavoriteName,
     )
     return updatedGids.size
 }

@@ -105,6 +105,7 @@ import com.hippo.ehviewer.client.parser.GalleryPageUrlParser
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
+import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.awaitSelectDate
 import com.hippo.ehviewer.ui.destinations.ProgressScreenDestination
 import com.hippo.ehviewer.ui.doGalleryInfoAction
@@ -196,6 +197,7 @@ fun AnimatedVisibilityScope.GalleryListScreen(
     ReportDrawnWhen { data.loadState.refresh !is LoadState.Loading }
     FavouriteStatusRouter.Observe(data)
     val listMode by Settings.listMode.collectAsState()
+    val favoriteNameForSlot = rememberFavoriteNameResolver()
 
     val entries = stringArrayResource(id = com.hippo.ehviewer.R.array.toplist_entries)
     val values = stringArrayResource(id = com.hippo.ehviewer.R.array.toplist_values)
@@ -541,6 +543,7 @@ fun AnimatedVisibilityScope.GalleryListScreen(
                     info = info,
                     showPages = showPages,
                     showProgress = showProgress,
+                    favoriteName = favoriteNameForSlot(info.favoriteSlot),
                     modifier = Modifier.height(height),
                 )
             },

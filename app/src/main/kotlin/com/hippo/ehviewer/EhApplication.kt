@@ -114,8 +114,6 @@ class EhApplication : Application(), SingletonImageLoader.Factory {
             FavouriteStatusRouter.collect { change ->
                 detailCache[change.gid]?.apply {
                     favoriteSlot = change.favoriteSlot
-                    favoriteName = change.favoriteName
-                    favoriteNote = change.favoriteNote
                 }
             }
         }
