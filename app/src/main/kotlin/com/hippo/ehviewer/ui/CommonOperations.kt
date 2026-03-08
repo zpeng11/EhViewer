@@ -181,7 +181,7 @@ suspend fun addToFavorites(galleryInfo: GalleryInfo, extraSlot: Int): Boolean = 
 
 suspend fun addToFavorites(galleryInfoList: Collection<GalleryInfo>, extraSlot: Int): Int {
     if (galleryInfoList.isEmpty()) return 0
-    val folder = EhDB.getLocalFavoriteFolder(extraSlot) ?: return 0
+    EhDB.getLocalFavoriteFolder(extraSlot) ?: return 0
     EhDB.putLocalFavorites(galleryInfoList)
     val updatedGids = EhDB.moveLocalFavoritesToExtraFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid), extraSlot)
     if (updatedGids.isEmpty()) return 0
@@ -189,13 +189,11 @@ suspend fun addToFavorites(galleryInfoList: Collection<GalleryInfo>, extraSlot: 
     galleryInfoList.forEach { galleryInfo ->
         if (galleryInfo.gid in updatedGidsSet) {
             galleryInfo.favoriteSlot = extraSlot
-            galleryInfo.favoriteName = folder.name
-            galleryInfo.favoriteNote = null
         }
     }
     FavouriteStatusRouter.notify(
         gids = updatedGids,
-        favoriteSlot = folder.slot,
+        favoriteSlot = extraSlot,
     )
     return updatedGids.size
 }
@@ -210,12 +208,9 @@ private suspend fun updateLocalFavorite(galleryInfo: GalleryInfo, favorited: Boo
     if (favorited) {
         EhDB.putLocalFavorites(galleryInfo)
         favoriteSlot = LOCAL_FAVORITED
-        favoriteName = appCtx.getString(R.string.local_favorites)
     } else {
         EhDB.removeLocalFavorites(galleryInfo)
         favoriteSlot = NOT_FAVORITED
-        favoriteName = null
-        favoriteNote = null
     }
     FavouriteStatusRouter.notify(galleryInfo)
     favorited
@@ -255,20 +250,18 @@ suspend fun moveLocalFavoritesToExtraFolder(gids: LongArray, slot: Int): Int {
 
 suspend fun moveLocalFavoritesToExtraFolder(galleryInfoList: Collection<GalleryInfo>, slot: Int): Int {
     if (galleryInfoList.isEmpty()) return 0
-    val folder = EhDB.getLocalFavoriteFolder(slot) ?: return 0
+    EhDB.getLocalFavoriteFolder(slot) ?: return 0
     val updatedGids = EhDB.moveLocalFavoritesToExtraFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid), slot)
     if (updatedGids.isEmpty()) return 0
     val updatedGidsSet = updatedGids.toSet()
     galleryInfoList.forEach { galleryInfo ->
         if (galleryInfo.gid in updatedGidsSet) {
-            galleryInfo.favoriteSlot = folder.slot
-            galleryInfo.favoriteName = folder.name
-            galleryInfo.favoriteNote = null
+            galleryInfo.favoriteSlot = slot
         }
     }
     FavouriteStatusRouter.notify(
         gids = updatedGids,
-        favoriteSlot = folder.slot,
+        favoriteSlot = slot,
     )
     return updatedGids.size
 }
@@ -287,12 +280,9 @@ suspend fun moveLocalFavoritesToDefaultFolder(galleryInfoList: Collection<Galler
     val updatedGids = EhDB.moveLocalFavoritesToDefaultFolder(galleryInfoList.mapToLongArray(GalleryInfo::gid))
     if (updatedGids.isEmpty()) return 0
     val updatedGidsSet = updatedGids.toSet()
-    val localFavoriteName = appCtx.getString(R.string.local_favorites)
     galleryInfoList.forEach { galleryInfo ->
         if (galleryInfo.gid in updatedGidsSet) {
             galleryInfo.favoriteSlot = LOCAL_FAVORITED
-            galleryInfo.favoriteName = localFavoriteName
-            galleryInfo.favoriteNote = null
         }
     }
     FavouriteStatusRouter.notify(

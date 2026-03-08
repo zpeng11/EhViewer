@@ -398,7 +398,6 @@
     <string name="default_favorites_collection">デフォルトのお気に入りリスト</string>
     <string name="default_favorites_warning">これを有効化するとお気に入りのメモを追加することができなくなります</string>
     <string name="let_me_select">手動で選択</string>
-    <string name="favorite_note">お気に入りのメモ</string>
     <string name="collections">コレクション</string>
     <!-- Progress Scene -->
     <string name="error_something_wrong_happened">エラーが発生しました</string>

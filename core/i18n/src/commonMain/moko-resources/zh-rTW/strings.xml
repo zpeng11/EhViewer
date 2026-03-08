@@ -384,7 +384,6 @@
     <string name="default_favorites_collection">預設收藏夾</string>
     <string name="default_favorites_warning">若啟用此項將無法新增收藏備註</string>
     <string name="let_me_select">讓我每次都選擇</string>
-    <string name="favorite_note">收藏備註</string>
     <string name="collections">收藏夾</string>
     <!-- Progress Scene -->
     <string name="error_something_wrong_happened">被玩壞了</string>

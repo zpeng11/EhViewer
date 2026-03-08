@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,7 +63,7 @@ fun GalleryInfoListItem(
     modifier: Modifier = Modifier,
     isInFavScene: Boolean = false,
     localOnlyThumb: Boolean = false,
-    favoriteName: String? = info.favoriteName,
+    favoriteName: String? = null,
     extraFavoriteSlotBadge: Int? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) = CrystalCard(
@@ -105,9 +104,6 @@ fun GalleryInfoListItem(
                                 slot = it,
                                 modifier = Modifier.align(Alignment.CenterVertically),
                             )
-                        }
-                        info.favoriteNote?.let {
-                            Text(text = it, modifier = Modifier.alignByBaseline(), fontStyle = FontStyle.Italic)
                         }
                     } else {
                         val showFav by FavouriteStatusRouter.collectAsState(info) { it != NOT_FAVORITED }

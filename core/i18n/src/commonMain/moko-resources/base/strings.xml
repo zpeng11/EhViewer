@@ -393,7 +393,6 @@
     <string name="default_favorites_collection">Default favorites collection</string>
     <string name="default_favorites_warning">You won\'t be able to add favorite notes if you enable this</string>
     <string name="let_me_select">Let me select</string>
-    <string name="favorite_note">Favorite Note</string>
     <string name="collections">Collections</string>
     <string name="create_favorite_folder_title">New extra collection</string>
     <string name="rename_favorite_folder_title">Rename extra collection</string>
