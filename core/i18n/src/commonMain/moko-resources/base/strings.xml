@@ -274,6 +274,8 @@
     <string name="no_history">Viewed galleries will be shown here</string>
     <string name="clear_all">Clear all</string>
     <string name="clear_all_history">Clear all history?</string>
+    <string name="remove_from_history">Remove from history</string>
+    <string name="history_local_content_unavailable">Only history items with local content can be opened</string>
     <!-- Filter -->
     <string name="filter">Blockers</string>
     <string name="filter_title">Title</string>

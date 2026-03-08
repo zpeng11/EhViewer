@@ -367,9 +367,19 @@ object EhDB {
     }
 
     suspend fun deleteHistoryInfo(galleryInfo: GalleryEntity) {
+        deleteHistoryInfo(galleryInfo.gid)
+    }
+
+    suspend fun deleteHistoryInfo(galleryInfo: GalleryInfo) {
+        deleteHistoryInfo(galleryInfo.gid)
+    }
+
+    suspend fun deleteHistoryInfo(gid: Long) {
         val dao = db.historyDao()
-        dao.deleteByKey(galleryInfo.gid)
-        deleteGalleryInfo(galleryInfo)
+        dao.deleteByKey(gid)
+        db.galleryDao().load(gid)?.let {
+            deleteGalleryInfo(it)
+        }
     }
 
     suspend fun clearHistoryInfo() {

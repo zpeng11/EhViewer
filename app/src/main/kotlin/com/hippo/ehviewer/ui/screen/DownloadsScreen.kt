@@ -614,7 +614,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         }
 
         fun onItemClick(info: DownloadInfo) {
-            launchIO { EhDB.putHistoryInfo(info) }
             navToReader(info.galleryInfo)
         }
 

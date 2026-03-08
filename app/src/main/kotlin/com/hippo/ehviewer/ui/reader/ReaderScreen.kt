@@ -181,6 +181,9 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
             .onCompletion { activity.requestedOrientation = orientation }
             .collect { activity.setOrientation(it) }
     }
+    LaunchedEffect(pageLoader, info?.gid) {
+        info?.let { EhDB.putHistoryInfo(it) }
+    }
     LaunchedEffect(pageLoader) {
         with(Settings) {
             merge(cropBorder.changesFlow(), stripExtraneousAds.changesFlow()).collect {

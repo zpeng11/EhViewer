@@ -333,7 +333,6 @@ suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
     val selected = awaitSelectItemWithIcon(items, EhUtils.getSuitableTitle(info))
     when (selected) {
         0 -> {
-            EhDB.putHistoryInfo(info)
             navToReader(info)
         }
         1 -> if (downloaded) {
@@ -358,6 +357,51 @@ suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
         }
         3 -> showMoveDownloadLabel(info)
     }
+}
+
+context(_: DialogState, _: MainActivity, _: DestinationsNavigator)
+suspend fun doHistoryInfoAction(info: BaseGalleryInfo, canReadLocally: Boolean) {
+    val favorited = EhDB.containLocalFavorites(info.gid)
+    val items = buildList {
+        if (canReadLocally) {
+            add(Icons.AutoMirrored.Default.MenuBook to R.string.read)
+        }
+        val favorite = if (favorited) {
+            Icons.Default.HeartBroken to R.string.remove_from_local_favourites
+        } else {
+            Icons.Default.Favorite to R.string.add_to_local_favourites
+        }
+        add(favorite)
+        add(Icons.Default.Delete to R.string.remove_from_history)
+    }
+    val selected = awaitSelectItemWithIcon(items, EhUtils.getSuitableTitle(info))
+    var offset = 0
+    if (canReadLocally) {
+        if (selected == offset) {
+            navToReader(info)
+            return
+        }
+        offset++
+    }
+    if (selected == offset) {
+        if (favorited) {
+            runSuspendCatching {
+                removeFromFavorites(info)
+                tip(R.string.remove_from_favorite_success)
+            }.onFailure {
+                tip(R.string.remove_from_favorite_failure)
+            }
+        } else {
+            runSuspendCatching {
+                addToFavorites(info)
+                tip(R.string.add_to_favorite_success)
+            }.onFailure {
+                tip(R.string.add_to_favorite_failure)
+            }
+        }
+        return
+    }
+    EhDB.deleteHistoryInfo(info)
 }
 
 context(_: DialogState)

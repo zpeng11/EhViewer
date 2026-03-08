@@ -21,10 +21,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -39,33 +41,44 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
+import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import com.ehviewer.core.i18n.R
+import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.ui.component.FastScrollLazyColumn
 import com.ehviewer.core.ui.icons.EhIcons
 import com.ehviewer.core.ui.icons.big.History
 import com.ehviewer.core.ui.util.Await
+import com.ehviewer.core.ui.util.launchInVM
 import com.ehviewer.core.ui.util.rememberInVM
+import com.ehviewer.core.ui.util.rememberUpdatedStateInVM
 import com.ehviewer.core.ui.util.thenIf
 import com.ehviewer.core.util.launch
+import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.collectAsState
+import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.Screen
-import com.hippo.ehviewer.ui.doGalleryInfoAction
+import com.hippo.ehviewer.ui.doHistoryInfoAction
 import com.hippo.ehviewer.ui.main.GalleryInfoListItem
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.util.FavouriteStatusRouter
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
 import moe.tarsin.navigate
+import moe.tarsin.tip
 
 @Destination<RootGraph>
 @Composable
@@ -91,6 +104,7 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
             }
         }.flow.cachedIn(viewModelScope)
     }.collectAsLazyPagingItems()
+    val localReadCache = rememberHistoryLocalReadCache(historyData)
     FavouriteStatusRouter.Observe(historyData)
     SearchBarScreen(
         onApplySearch = {
@@ -145,6 +159,7 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
             ) { index ->
                 val info = historyData[index]
                 if (info != null) {
+                    val canReadLocally = localReadCache[info.gid]
                     val dismissState = rememberSwipeToDismissBoxState()
                     SwipeToDismissBox(
                         state = dismissState,
@@ -154,11 +169,35 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
                         onDismiss = { EhDB.deleteHistoryInfo(info) },
                     ) {
                         GalleryInfoListItem(
-                            onClick = { navigate(info.asDst()) },
-                            onLongClick = { launch { doGalleryInfoAction(info) } },
+                            onClick = {
+                                when (canReadLocally) {
+                                    true -> navigate(info.asDst())
+                                    false -> tip(R.string.history_local_content_unavailable)
+                                    null -> launch {
+                                        val resolved = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                                        localReadCache.complete(info.gid, resolved)
+                                        if (resolved) {
+                                            navigate(info.asDst())
+                                        } else {
+                                            tip(R.string.history_local_content_unavailable)
+                                        }
+                                    }
+                                }
+                            },
+                            onLongClick = {
+                                launch {
+                                    val resolved = canReadLocally ?: withIOContext {
+                                        DownloadManager.canReadGalleryLocally(info.gid)
+                                    }.also {
+                                        localReadCache.complete(info.gid, it)
+                                    }
+                                    doHistoryInfoAction(info, resolved)
+                                }
+                            },
                             info = info,
                             showPages = showPages,
                             showProgress = showProgress,
+                            localOnlyThumb = true,
                             favoriteName = favoriteNameForSlot(info.favoriteSlot),
                             modifier = Modifier.height(cardHeight).padding(horizontal = marginH),
                         )
@@ -194,4 +233,38 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
             }
         }
     }
+}
+
+private class HistoryLocalReadCache {
+    val values = mutableStateMapOf<Long, Boolean>()
+    private val resolvedGids = ConcurrentHashMap.newKeySet<Long>()
+    private val pendingGids = ConcurrentHashMap.newKeySet<Long>()
+
+    operator fun get(gid: Long) = values[gid]
+
+    fun shouldWarm(gid: Long) = gid !in resolvedGids && pendingGids.add(gid)
+
+    fun complete(gid: Long, canReadLocally: Boolean) {
+        values[gid] = canReadLocally
+        resolvedGids.add(gid)
+        pendingGids.remove(gid)
+    }
+}
+
+@Composable
+private fun rememberHistoryLocalReadCache(historyData: LazyPagingItems<out GalleryInfo>): HistoryLocalReadCache {
+    val cache = rememberInVM { HistoryLocalReadCache() }
+    val snapshotItems by rememberUpdatedStateInVM(newValue = historyData.itemSnapshotList.items)
+    launchInVM(Dispatchers.IO) {
+        snapshotFlow { snapshotItems.map { it.gid } }.collectLatest { gids ->
+            gids.forEach { gid ->
+                if (!cache.shouldWarm(gid)) return@forEach
+                val canReadLocally = DownloadManager.canReadGalleryLocally(gid)
+                withContext(Dispatchers.Main.immediate) {
+                    cache.complete(gid, canReadLocally)
+                }
+            }
+        }
+    }
+    return cache
 }

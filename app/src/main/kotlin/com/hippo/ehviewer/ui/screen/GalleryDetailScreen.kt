@@ -50,7 +50,6 @@ import com.ehviewer.core.util.launchIO
 import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.EhApplication.Companion.imageCache
-import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhEngine
 import com.hippo.ehviewer.client.EhUrl
@@ -139,11 +138,9 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                 }.onSuccess { galleryDetail ->
                     detailCache[galleryDetail.gid] = galleryDetail
                 }.onFailure { e ->
-                    galleryInfo?.let { EhDB.putHistoryInfo(it) }
                     getDetailError = e.displayString()
                 }.getOrNull()
             galleryDetail?.let {
-                EhDB.putHistoryInfo(it)
                 galleryInfo = it
             }
         }

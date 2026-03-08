@@ -48,6 +48,7 @@ import com.hippo.ehviewer.spider.SpiderQueen
 import com.hippo.ehviewer.spider.SpiderQueen.Companion.SPIDER_INFO_FILENAME
 import com.hippo.ehviewer.spider.SpiderQueen.OnSpiderListener
 import com.hippo.ehviewer.spider.downloadDirname
+import com.hippo.ehviewer.spider.readFromCache
 import com.hippo.ehviewer.spider.readComicInfo
 import com.hippo.ehviewer.spider.readCompatFromPath
 import com.hippo.ehviewer.spider.toSimpleTags
@@ -131,6 +132,16 @@ object DownloadManager : OnSpiderListener, CoroutineScope {
     fun containDownloadInfo(gid: Long) = mAllInfoMap.containsKey(gid)
 
     fun getDownloadInfo(gid: Long) = mAllInfoMap[gid]
+
+    fun canReadGalleryLocally(gid: Long): Boolean {
+        val info = getDownloadInfo(gid) ?: return false
+        if (info.archiveFile != null) return true
+        val downloadDir = info.downloadDir ?: return false
+        downloadDir.find(SPIDER_INFO_FILENAME)?.let { spiderInfo ->
+            if (readCompatFromPath(spiderInfo)?.let { it.gid == info.gid && it.token == info.token } == true) return true
+        }
+        return readFromCache(gid)?.let { it.gid == info.gid && it.token == info.token } == true
+    }
 
     fun getDownloadState(gid: Long): Int {
         val info = mAllInfoMap[gid]
@@ -222,8 +233,6 @@ object DownloadManager : OnSpiderListener, CoroutineScope {
             // Make sure download is running
             ensureDownload()
 
-            // Add it to history
-            EhDB.putHistoryInfo(info)
         }
     }
 
