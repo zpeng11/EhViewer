@@ -112,7 +112,6 @@ import com.ehviewer.core.util.isAtLeastS
 import com.ehviewer.core.util.withIOContext
 import com.hippo.ehviewer.EhApplication.Companion.initialized
 import com.hippo.ehviewer.Settings
-import com.hippo.ehviewer.download.DownloadService
 import com.hippo.ehviewer.download.downloadLocation
 import com.hippo.ehviewer.ui.destinations.DownloadScreenDestination
 import com.hippo.ehviewer.ui.destinations.DownloadsScreenDestination
@@ -242,13 +241,6 @@ class MainActivity : AppCompatActivity() {
                             if ("text/plain" == type || (type != null && type.startsWith("image/"))) {
                                 snackbarState.showSnackbar(cannotParse)
                             }
-                        }
-                        DownloadService.ACTION_START_DOWNLOADSCENE -> {
-                            val args = intent.getBundleExtra(DownloadService.ACTION_START_DOWNLOADSCENE_ARGS)!!
-                            if (args.getString(DownloadService.KEY_ACTION) == DownloadService.ACTION_CLEAR_DOWNLOAD_SERVICE) {
-                                DownloadService.clear()
-                            }
-                            navigator.navigate(DownloadsScreenDestination)
                         }
                     }
                 }

@@ -24,8 +24,8 @@ suspend inline fun <T> useEhPageLoader(
 ) = autoCloseScope {
     coroutineScope {
         val queen = install(
-            { obtainSpiderQueen(info, SpiderQueen.MODE_READ) },
-            { queen, _ -> releaseSpiderQueen(queen, SpiderQueen.MODE_READ) },
+            { obtainSpiderQueen(info) },
+            { queen, _ -> releaseSpiderQueen(queen) },
         )
         queen.awaitReady()
         val localReadFailureMessage = appCtx.getString(R.string.error_reading_failed)

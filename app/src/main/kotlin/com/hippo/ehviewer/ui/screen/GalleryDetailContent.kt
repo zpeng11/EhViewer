@@ -99,7 +99,6 @@ import com.ehviewer.core.ui.util.rememberInVM
 import com.ehviewer.core.util.async
 import com.ehviewer.core.util.launch
 import com.ehviewer.core.util.launchIO
-import com.ehviewer.core.util.launchUI
 import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.withIOContext
 import com.ehviewer.core.util.withUIContext
@@ -135,7 +134,6 @@ import com.hippo.ehviewer.ui.main.TorrentList
 import com.hippo.ehviewer.ui.modifyFavorites
 import com.hippo.ehviewer.ui.navToReader
 import com.hippo.ehviewer.ui.openBrowser
-import com.hippo.ehviewer.ui.startDownload
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.ui.tools.awaitResult
@@ -189,17 +187,10 @@ fun GalleryDetailContent(
         stringResource(R.string.read_from, startPage + 1)
     }
     val downloadState by DownloadManager.collectDownloadState(galleryInfo.gid)
-    val downloadButtonText = when (downloadState) {
-        DownloadInfo.STATE_INVALID -> stringResource(R.string.download)
-        DownloadInfo.STATE_NONE -> stringResource(R.string.download_state_none)
-        DownloadInfo.STATE_WAIT -> stringResource(R.string.download_state_wait)
-        DownloadInfo.STATE_DOWNLOAD -> stringResource(R.string.download_state_downloading)
-        DownloadInfo.STATE_FINISH -> stringResource(R.string.download_state_downloaded)
-        DownloadInfo.STATE_FAILED -> stringResource(R.string.download_state_failed)
-        else -> error("Invalid DownloadState!!!")
-    }
+    val hasLocalEntry = downloadState != DownloadInfo.STATE_INVALID
+    val downloadButtonText = stringResource(R.string.delete_downloads)
     fun onReadButtonClick() {
-        if (galleryDetail != null || downloadState != DownloadInfo.STATE_INVALID) {
+        if (galleryDetail != null || hasLocalEntry) {
             navToReader(galleryInfo.findBaseInfo(), startPage)
         }
     }
@@ -249,10 +240,8 @@ fun GalleryDetailContent(
         }
     }
     fun onDownloadButtonClick() {
-        galleryDetail ?: return
-        if (DownloadManager.getDownloadState(galleryDetail.gid) == DownloadInfo.STATE_INVALID) {
-            launchUI { startDownload(false, galleryDetail.galleryInfo) }
-        } else {
+        if (hasLocalEntry) {
+            galleryDetail ?: return
             launch { confirmRemoveDownload(galleryDetail) }
         }
     }
@@ -287,18 +276,28 @@ fun GalleryDetailContent(
             ) {
                 LocalPinnableContainer.current!!.run { remember { pin() } }
                 Column {
-                    Row {
-                        FilledTonalButton(
-                            onClick = ::onDownloadButtonClick,
-                            shapes = ButtonDefaults.shapes(),
-                            modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
-                        ) {
-                            Text(text = downloadButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
+                    if (hasLocalEntry) {
+                        Row {
+                            FilledTonalButton(
+                                onClick = ::onDownloadButtonClick,
+                                shapes = ButtonDefaults.shapes(),
+                                modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
+                            ) {
+                                Text(text = downloadButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
+                            }
+                            Button(
+                                onClick = ::onReadButtonClick,
+                                shapes = ButtonDefaults.shapes(),
+                                modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
+                            ) {
+                                Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
+                            }
                         }
+                    } else {
                         Button(
                             onClick = ::onReadButtonClick,
                             shapes = ButtonDefaults.shapes(),
-                            modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                         ) {
                             Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
                         }
@@ -354,13 +353,15 @@ fun GalleryDetailContent(
                         ) {
                             Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
                         }
-                        Spacer(modifier = modifier.height(24.dp))
-                        FilledTonalButton(
-                            onClick = ::onDownloadButtonClick,
-                            shapes = ButtonDefaults.shapes(),
-                            modifier = Modifier.height(56.dp).padding(horizontal = 16.dp).width(192.dp),
-                        ) {
-                            Text(text = downloadButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
+                        if (hasLocalEntry) {
+                            Spacer(modifier = modifier.height(24.dp))
+                            FilledTonalButton(
+                                onClick = ::onDownloadButtonClick,
+                                shapes = ButtonDefaults.shapes(),
+                                modifier = Modifier.height(56.dp).padding(horizontal = 16.dp).width(192.dp),
+                            ) {
+                                Text(text = downloadButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
+                            }
                         }
                     }
                 }

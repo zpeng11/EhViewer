@@ -15,8 +15,8 @@
  */
 package com.hippo.ehviewer.ui
 
-import android.Manifest
 import android.content.Context
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.HeartBroken
@@ -47,7 +46,6 @@ import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryInfo.Companion.LOCAL_FAVORITED
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.ui.component.LabeledCheckbox
-import com.ehviewer.core.util.isAtLeastT
 import com.ehviewer.core.util.mapToLongArray
 import com.ehviewer.core.util.toEpochMillis
 import com.ehviewer.core.util.toLocalDateTime
@@ -56,7 +54,6 @@ import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhUtils
 import com.hippo.ehviewer.download.DownloadManager
-import com.hippo.ehviewer.download.DownloadService
 import com.hippo.ehviewer.download.downloadDir
 import com.hippo.ehviewer.download.downloadLocation
 import com.hippo.ehviewer.download.tempDownloadDir
@@ -67,10 +64,8 @@ import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.ui.tools.awaitResult
 import com.hippo.ehviewer.ui.tools.awaitSelectDate
 import com.hippo.ehviewer.ui.tools.awaitSelectItem
-import com.hippo.ehviewer.ui.tools.awaitSelectItemWithCheckBox
 import com.hippo.ehviewer.ui.tools.awaitSelectItemWithIcon
 import com.hippo.ehviewer.util.FavouriteStatusRouter
-import com.hippo.ehviewer.util.requestPermission
 import com.hippo.ehviewer.util.restartApplication
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlin.time.Clock
@@ -82,7 +77,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.todayIn
 import moe.tarsin.coroutines.runSuspendCatching
-import moe.tarsin.string
 import moe.tarsin.tip
 import okio.Path
 import splitties.init.appCtx
@@ -110,68 +104,6 @@ suspend fun keepNoMediaFileStatus(downloadDir: Path = downloadLocation, mediaSca
 }
 
 fun getFavoriteIcon(favorited: Boolean) = if (favorited) Icons.Default.Favorite else Icons.Default.FavoriteBorder
-
-context(_: DialogState, _: MainActivity)
-suspend fun startDownload(forceDefault: Boolean, vararg galleryInfos: BaseGalleryInfo) {
-    if (isAtLeastT) {
-        requestPermission(Manifest.permission.POST_NOTIFICATIONS)
-    }
-    val (toStart, toAdd) = galleryInfos.partition { DownloadManager.containDownloadInfo(it.gid) }
-    if (toStart.isNotEmpty()) {
-        val list = toStart.mapToLongArray(GalleryInfo::gid)
-        DownloadService.startRangeDownload(list)
-    }
-    if (toAdd.isEmpty()) {
-        return tip(R.string.added_to_download_list)
-    }
-    var justStart = forceDefault
-    var label: String? = null
-    // Get default download label
-    if (!justStart && Settings.hasDefaultDownloadLabel) {
-        label = Settings.defaultDownloadLabel
-        justStart = label == null || DownloadManager.containLabel(label)
-    }
-    // If there is no other label, just use null label
-    if (!justStart && DownloadManager.labelList.isEmpty()) {
-        justStart = true
-        label = null
-    }
-    if (justStart) {
-        // Got default label
-        for (gi in toAdd) {
-            DownloadService.startDownload(gi, label)
-        }
-        // Notify
-        tip(R.string.added_to_download_list)
-    } else {
-        // Let use chose label
-        val list = DownloadManager.labelList
-        val items = buildList {
-            add(string(R.string.default_download_label_name))
-            list.forEach {
-                add(it.label)
-            }
-        }
-        val (selected, checked) = awaitSelectItemWithCheckBox(
-            items,
-            title = R.string.download,
-            checkBoxText = R.string.remember_download_label,
-        )
-        val label1 = if (selected == 0) null else items[selected].takeIf { DownloadManager.containLabel(it) }
-        // Start download
-        for (gi in toAdd) {
-            DownloadService.startDownload(gi, label1)
-        }
-        // Save settings
-        if (checked) {
-            Settings.hasDefaultDownloadLabel = true
-            Settings.defaultDownloadLabel = label1
-        } else {
-            Settings.hasDefaultDownloadLabel = false
-        }
-        tip(R.string.added_to_download_list)
-    }
-}
 
 context(_: DialogState)
 suspend fun addToFavorites(galleryInfo: GalleryInfo): Boolean = updateLocalFavorite(galleryInfo, true)
@@ -312,51 +244,51 @@ context(_: DialogState, _: MainActivity, _: DestinationsNavigator)
 suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
     val downloaded = DownloadManager.getDownloadState(info.gid) != DownloadInfo.STATE_INVALID
     val favorited = EhDB.containLocalFavorites(info.gid)
-    val items = buildList {
-        add(Icons.AutoMirrored.Default.MenuBook to R.string.read)
-        val download = if (downloaded) {
-            Icons.Default.Delete to R.string.delete_downloads
-        } else {
-            Icons.Default.Download to R.string.download
-        }
-        add(download)
-        val favorite = if (favorited) {
-            Icons.Default.HeartBroken to R.string.remove_from_local_favourites
-        } else {
-            Icons.Default.Favorite to R.string.add_to_local_favourites
-        }
-        add(favorite)
-        if (downloaded) {
-            add(Icons.AutoMirrored.Default.DriveFileMove to R.string.download_move_dialog_title)
-        }
-    }
-    val selected = awaitSelectItemWithIcon(items, EhUtils.getSuitableTitle(info))
-    when (selected) {
-        0 -> {
+    data class GalleryAction(
+        val icon: ImageVector,
+        val title: Int,
+        val onClick: suspend () -> Unit,
+    )
+
+    val actions = buildList {
+        add(GalleryAction(Icons.AutoMirrored.Default.MenuBook, R.string.read) {
             navToReader(info)
+        })
+        if (downloaded) {
+            add(GalleryAction(Icons.Default.Delete, R.string.delete_downloads) {
+                confirmRemoveDownload(info)
+            })
         }
-        1 -> if (downloaded) {
-            confirmRemoveDownload(info)
-        } else {
-            startDownload(false, info)
+        add(
+            GalleryAction(
+                icon = if (favorited) Icons.Default.HeartBroken else Icons.Default.Favorite,
+                title = if (favorited) R.string.remove_from_local_favourites else R.string.add_to_local_favourites,
+            ) {
+                if (favorited) {
+                    runSuspendCatching {
+                        removeFromFavorites(info)
+                        tip(R.string.remove_from_favorite_success)
+                    }.onFailure {
+                        tip(R.string.remove_from_favorite_failure)
+                    }
+                } else {
+                    runSuspendCatching {
+                        addToFavorites(info)
+                        tip(R.string.add_to_favorite_success)
+                    }.onFailure {
+                        tip(R.string.add_to_favorite_failure)
+                    }
+                }
+            },
+        )
+        if (downloaded) {
+            add(GalleryAction(Icons.AutoMirrored.Default.DriveFileMove, R.string.download_move_dialog_title) {
+                showMoveDownloadLabel(info)
+            })
         }
-        2 -> if (favorited) {
-            runSuspendCatching {
-                removeFromFavorites(info)
-                tip(R.string.remove_from_favorite_success)
-            }.onFailure {
-                tip(R.string.remove_from_favorite_failure)
-            }
-        } else {
-            runSuspendCatching {
-                addToFavorites(info)
-                tip(R.string.add_to_favorite_success)
-            }.onFailure {
-                tip(R.string.add_to_favorite_failure)
-            }
-        }
-        3 -> showMoveDownloadLabel(info)
     }
+    val selected = awaitSelectItemWithIcon(actions.map { it.icon to it.title }, EhUtils.getSuitableTitle(info))
+    actions[selected].onClick()
 }
 
 context(_: DialogState, _: MainActivity, _: DestinationsNavigator)

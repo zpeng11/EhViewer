@@ -92,23 +92,6 @@ class SpiderDen(val info: GalleryInfo) {
         downloadDir = downloadLocation / dirname
     }
 
-    @Volatile
-    @SpiderQueen.Mode
-    var mode = SpiderQueen.MODE_READ
-        private set
-
-    suspend fun setMode(value: Int) {
-        mode = value
-        if (mode == SpiderQueen.MODE_DOWNLOAD) {
-            if (downloadDir == null) {
-                downloadDir = getGalleryDownloadDir(info).apply { mkdirs() }
-            }
-            if (saveAsCbz && tempDownloadDir == null) {
-                tempDownloadDir = info.tempDownloadDir!!.apply { mkdirs() }
-            }
-        }
-    }
-
     private fun containInCache(index: Int): Boolean {
         val key = getImageKey(gid, index)
         return sCache.read(key) {} != null
@@ -135,17 +118,7 @@ class SpiderDen(val info: GalleryInfo) {
         }.getOrDefault(false)
     }
 
-    operator fun contains(index: Int): Boolean = when (mode) {
-        SpiderQueen.MODE_READ -> {
-            containInCache(index) || containInDownloadDir(index)
-        }
-        SpiderQueen.MODE_DOWNLOAD -> {
-            containInDownloadDir(index) || copyFromCacheToDownloadDir(index)
-        }
-        else -> {
-            false
-        }
-    }
+    operator fun contains(index: Int): Boolean = containInCache(index) || containInDownloadDir(index)
 
     private fun removeFromCache(index: Int): Boolean {
         val key = getImageKey(gid, index)
@@ -198,15 +171,11 @@ class SpiderDen(val info: GalleryInfo) {
             return true
         }
 
-        // Read Mode, allow save to cache
-        if (mode == SpiderQueen.MODE_READ) {
-            val key = getImageKey(gid, index)
-            return sCache.suspendEdit(key) {
-                metadata.toFile().writeText(ext)
-                fops(data)
-            }
+        val key = getImageKey(gid, index)
+        return sCache.suspendEdit(key) {
+            metadata.toFile().writeText(ext)
+            fops(data)
         }
-        return false
     }
 
     private suspend fun saveFromHttpResponse(index: Int, response: HttpResponse): Boolean {
@@ -255,15 +224,13 @@ class SpiderDen(val info: GalleryInfo) {
     }
 
     fun getImageSource(index: Int): PathSource {
-        if (mode == SpiderQueen.MODE_READ) {
-            val key = getImageKey(gid, index)
-            val snapshot = sCache.openSnapshot(key)
-            if (snapshot != null) {
-                return object : PathSource, AutoCloseable by snapshot {
-                    override val source = snapshot.data
-                    override val type by lazy {
-                        snapshot.metadata.toFile().readText()
-                    }
+        val key = getImageKey(gid, index)
+        val snapshot = sCache.openSnapshot(key)
+        if (snapshot != null) {
+            return object : PathSource, AutoCloseable by snapshot {
+                override val source = snapshot.data
+                override val type by lazy {
+                    snapshot.metadata.toFile().readText()
                 }
             }
         }
