@@ -15,68 +15,31 @@
  */
 package com.hippo.ehviewer.spider
 
-import android.webkit.MimeTypeMap
 import arrow.fx.coroutines.autoCloseable
 import arrow.fx.coroutines.closeable
 import arrow.fx.coroutines.parMap
 import arrow.fx.coroutines.resourceScope
 import com.ehviewer.core.database.model.DownloadArtist
-import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.exists
 import com.ehviewer.core.files.find
-import com.ehviewer.core.files.isDirectory
-import com.ehviewer.core.files.list
-import com.ehviewer.core.files.moveTo
 import com.ehviewer.core.files.openFileDescriptor
 import com.ehviewer.core.files.sendTo
-import com.ehviewer.core.model.GalleryDetail
 import com.ehviewer.core.model.GalleryInfo
-import com.ehviewer.core.util.logcat
-import com.hippo.ehviewer.EhApplication.Companion.imageCache as sCache
 import com.hippo.ehviewer.EhDB
-import com.hippo.ehviewer.Settings
-import com.hippo.ehviewer.client.EhEngine
 import com.hippo.ehviewer.client.EhUtils.getSuitableTitle
-import com.hippo.ehviewer.client.ehRequest
-import com.hippo.ehviewer.client.getImageKey
-import com.hippo.ehviewer.coil.read
-import com.hippo.ehviewer.coil.suspendEdit
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.download.downloadLocation
-import com.hippo.ehviewer.download.tempDownloadDir
 import com.hippo.ehviewer.image.PathSource
 import com.hippo.ehviewer.jni.archiveFdBatch
 import com.hippo.ehviewer.library.content.LocalGalleryContent
 import com.hippo.ehviewer.util.FileUtils
-import com.hippo.ehviewer.util.copyTo
-import com.hippo.ehviewer.util.sha1
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsChannel
-import io.ktor.client.statement.request
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 import okio.Path
 
-class SpiderDen(val info: GalleryInfo) {
+class SpiderDen(private val info: GalleryInfo) {
     private val gid = info.gid
-    var downloadDir: Path? = null
-        private set
-
-    private var tempDownloadDir: Path? = null
+    private var downloadDir: Path? = null
     private var localContentDelegate: LocalGalleryContent? = null
-    private val saveAsCbz = Settings.saveAsCbz.value
     private val archiveName = "$gid.cbz"
-
-    private val lock = ReentrantReadWriteLock()
-
-    // Search in both directories to maintain compatibility
-    private val fileCache by lazy {
-        listOfNotNull(tempDownloadDir, downloadDir).map(Path::list).flatten().associateBy { it.name } as MutableMap
-    }
-
-    private val imageDir
-        get() = tempDownloadDir.takeIf { saveAsCbz } ?: downloadDir
 
     constructor(info: GalleryInfo, dirname: String) : this(info) {
         downloadDir = downloadLocation / dirname
@@ -84,141 +47,16 @@ class SpiderDen(val info: GalleryInfo) {
 
     private fun localContent(): LocalGalleryContent {
         val current = localContentDelegate
-        if (current != null && current.downloadDir == downloadDir && current.resolvedTempDownloadDir == tempDownloadDir) {
+        if (current != null && current.downloadDir == downloadDir) {
             return current
         }
-        return LocalGalleryContent(info, downloadDir, tempDownloadDir).also {
+        return LocalGalleryContent(info, downloadDir, null).also {
             localContentDelegate = it
         }
     }
 
-    private fun findImageFile(index: Int, temp: Boolean = false) = lock.read {
-        val head = perFilename(index)
-        fileCache.entries.firstOrNull { (name) -> name.startsWith(head) && temp == name.endsWith(TEMP_SUFFIX) }?.value
-    }
-
-    operator fun contains(index: Int): Boolean = localContent().run { index in this }
-
-    private fun removeFromCache(index: Int): Boolean {
-        val key = getImageKey(gid, index)
-        return sCache.remove(key)
-    }
-
-    private fun removeTempFile(index: Int) = findImageFile(index, temp = true)?.let { file ->
-        file.delete()
-        lock.write { fileCache.remove(file.name) }
-    }
-
-    fun removeIntermediateFiles(index: Int) {
-        removeFromCache(index)
-        removeTempFile(index)
-    }
-
-    private fun Path.findDownloadFileForIndex(index: Int, extension: String) = with(lock) {
-        val name = perFilename(index, extension)
-        read { fileCache[name] } ?: resolve(name).also { write { fileCache[name] = it } }
-    }
-
-    suspend fun makeHttpCallAndSaveImage(
-        index: Int,
-        url: String,
-        referer: String?,
-        notifyProgress: (Long, Long, Int) -> Unit,
-    ) = timeoutBySpeed(
-        url,
-        { ehRequest(url, referer, builder = it) },
-        notifyProgress,
-        { resp -> check(saveFromHttpResponse(index, resp)) },
-    )
-
-    private suspend inline fun saveResponseMeta(
-        index: Int,
-        ext: String,
-        crossinline fops: suspend (Path) -> Unit,
-    ): Boolean {
-        imageDir?.run {
-            val tempFile = findDownloadFileForIndex(index, "$ext$TEMP_SUFFIX")
-            fops(tempFile)
-            val file = resolve(tempFile.name.removeSuffix(TEMP_SUFFIX))
-            file.delete()
-            lock.write { fileCache.remove(file.name) }
-            tempFile moveTo file
-            lock.write {
-                fileCache.remove(tempFile.name)
-                fileCache[file.name] = file
-            }
-            return true
-        }
-
-        val key = getImageKey(gid, index)
-        return sCache.suspendEdit(key) {
-            metadata.toFile().writeText(ext)
-            fops(data)
-        }
-    }
-
-    private suspend fun saveFromHttpResponse(index: Int, response: HttpResponse): Boolean {
-        val url = response.request.url.toString()
-        val extension = MimeTypeMap.getFileExtensionFromUrl(url).ifEmpty { "jpg" }
-        return saveResponseMeta(index, extension) { outFile ->
-            response.bodyAsChannel().copyTo(outFile)
-            FileHashRegex.find(url)?.let {
-                val expected = it.groupValues[1]
-                val actual = outFile.sha1()
-                check(expected == actual) { "File hash mismatch: expected $expected, but got $actual\nURL: $url" }
-            }
-        }
-    }
-
-    fun saveToPath(index: Int, file: Path): Boolean {
-        return localContent().saveToPath(index, file)
-    }
-
-    fun getExtension(index: Int): String? {
-        return localContent().getExtension(index)
-    }
-
-    fun getImageSource(index: Int): PathSource {
+    private fun getImageSource(index: Int): PathSource {
         return localContent().getImageSource(index)
-    }
-
-    fun getImageSourceForReader(index: Int): PathSource {
-        return localContent().getImageSourceForReader(index)
-    }
-
-    fun getLocalPageCount(): Int {
-        return localContent().getLocalPageCount()
-    }
-
-    fun clearReaderIsolationCache() {
-        localContent().clearReaderIsolationCache()
-    }
-
-    suspend fun archive() = saveAsCbz && downloadDir?.run {
-        resolve(archiveName).let { file ->
-            runCatching {
-                archiveTo(file)
-            }.onFailure {
-                file.delete()
-                logcat(it)
-            }.isFailure
-        }
-    } == true
-
-    // Postpone this to `SpiderQueen.stop` because files may still be in use by reader
-    suspend fun postArchive(): Boolean {
-        val dir = downloadDir
-        val archived = saveAsCbz && dir?.find(archiveName) != null
-        if (archived) {
-            dir.list().parMap(concurrency = 10) {
-                if (it.name.matches(FileNameRegex)) {
-                    it.delete()
-                }
-            }
-            (dir / SpiderQueen.SPIDER_INFO_FILENAME).delete()
-            tempDownloadDir?.delete()
-        }
-        return archived
     }
 
     suspend fun exportAsCbz(file: Path) = downloadDir!!.find(archiveName)?.sendTo(file) ?: archiveTo(file)
@@ -242,41 +80,26 @@ class SpiderDen(val info: GalleryInfo) {
         archiveFdBatch(fdBatch.toIntArray(), names.toTypedArray(), arcFd.fd, pages + 1)
     }
 
-    suspend fun initDownloadDirIfExist() {
-        val content = LocalGalleryContent(info).also { it.initDownloadDirIfExist() }
-        downloadDir = content.downloadDir
-        tempDownloadDir = content.resolvedTempDownloadDir
-        localContentDelegate = content
-    }
-
-    suspend fun initDownloadDir() {
-        val content = LocalGalleryContent(info).also { it.initDownloadDir() }
-        downloadDir = content.downloadDir
-        tempDownloadDir = content.resolvedTempDownloadDir
-        localContentDelegate = content
-    }
-
-    suspend fun writeComicInfo(fetchMetadata: Boolean = true) {
+    private suspend fun writeComicInfo() {
         downloadDir?.run {
+            val pageCount = localContent().getLocalPageCount()
+            if (pageCount > 0) {
+                info.pages = pageCount
+            }
             resolve(COMIC_INFO_FILE).also {
-                if (info !is GalleryDetail && fetchMetadata) {
-                    EhEngine.fillGalleryListByApi(listOf(info))
-                }
                 info.getComicInfo().apply {
                     writeComicInfo(this, it)
-                    DownloadManager.getDownloadInfo(gid)?.let { downloadInfo ->
-                        downloadInfo.artistInfoList = DownloadArtist.from(gid, penciller.orEmpty())
-                        EhDB.putDownloadArtist(gid, downloadInfo.artistInfoList)
+                    penciller?.let { artists ->
+                        DownloadManager.getDownloadInfo(gid)?.let { downloadInfo ->
+                            downloadInfo.artistInfoList = DownloadArtist.from(gid, artists)
+                            EhDB.putDownloadArtist(gid, downloadInfo.artistInfoList)
+                        }
                     }
                 }
             }
         }
     }
 }
-
-private const val TEMP_SUFFIX = ".tmp"
-private val FileNameRegex = Regex("^\\d{8}\\.\\w{3,4}")
-private val FileHashRegex = Regex("/h/([0-9a-f]{40})")
 
 fun perFilename(index: Int, extension: String = ""): String = "%08d.%s".format(index + 1, extension)
 

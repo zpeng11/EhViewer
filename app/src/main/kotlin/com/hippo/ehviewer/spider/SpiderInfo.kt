@@ -30,6 +30,8 @@ class SpiderInfo(
     var previewPerPage: Int = -1,
 )
 
+const val SPIDER_INFO_FILENAME = ".ehviewer"
+
 private val cbor = Cbor {
     ignoreUnknownKeys = true
 }

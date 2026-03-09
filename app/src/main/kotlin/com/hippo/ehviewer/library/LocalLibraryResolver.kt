@@ -6,7 +6,7 @@ import com.ehviewer.core.files.isDirectory
 import com.hippo.ehviewer.download.archiveFile
 import com.hippo.ehviewer.download.downloadDir
 import com.hippo.ehviewer.library.content.LocalGalleryContent
-import com.hippo.ehviewer.spider.SpiderQueen.Companion.SPIDER_INFO_FILENAME
+import com.hippo.ehviewer.spider.SPIDER_INFO_FILENAME
 import com.hippo.ehviewer.spider.readCompatFromPath
 import com.hippo.ehviewer.spider.readFromCache
 

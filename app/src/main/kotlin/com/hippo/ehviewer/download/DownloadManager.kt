@@ -42,7 +42,7 @@ import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.spider.COMIC_INFO_FILE
-import com.hippo.ehviewer.spider.SpiderQueen.Companion.SPIDER_INFO_FILENAME
+import com.hippo.ehviewer.spider.SPIDER_INFO_FILENAME
 import com.hippo.ehviewer.spider.readComicInfo
 import com.hippo.ehviewer.spider.readCompatFromPath
 import com.hippo.ehviewer.spider.toSimpleTags
@@ -118,9 +118,15 @@ object DownloadManager {
 
     @Stable
     @Composable
-    fun collectContainDownloadInfo(gid: Long): State<Boolean> = remember {
+    fun collectContainDownloadInfo(gid: Long): State<Boolean> = remember(gid) {
         notifyFlow.transform { if (it.gid == gid) emit(containDownloadInfo(gid)) }
     }.collectAsState(containDownloadInfo(gid))
+
+    @Stable
+    @Composable
+    fun collectCanReadGalleryLocally(gid: Long): State<Boolean> = remember(gid) {
+        notifyFlow.transform { if (it.gid == gid) emit(canReadGalleryLocally(gid)) }
+    }.collectAsState(canReadGalleryLocally(gid))
 
     @Stable
     @Composable

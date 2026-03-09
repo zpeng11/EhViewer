@@ -35,7 +35,6 @@ import com.hippo.ehviewer.client.exception.EhException
 import com.hippo.ehviewer.client.exception.InsufficientFundsException
 import com.hippo.ehviewer.client.exception.InsufficientGpException
 import com.hippo.ehviewer.client.exception.IpBannedException
-import com.hippo.ehviewer.client.exception.NoHathClientException
 import com.hippo.ehviewer.client.exception.NoHitsFoundException
 import com.hippo.ehviewer.client.exception.NotLoggedInException
 import com.hippo.ehviewer.client.exception.ParseException
@@ -143,7 +142,7 @@ private fun rethrowExactly(response: HttpResponse, body: Either<String, ByteBuff
         EhError.NoHits -> throw NoHitsFoundException()
         EhError.NoWatched -> throw EhException(R.string.gallery_list_empty_hit_subscription)
         EhError.NeedLogin -> throw NotLoggedInException()
-        EhError.NoHathClient -> throw NoHathClientException()
+        EhError.NoHathClient -> throw EhException(R.string.download_archive_failure_no_hath)
         EhError.InsufficientFunds -> throw InsufficientFundsException()
         is EhError.IpBanned -> throw IpBannedException(error.message)
         is EhError.Error -> throw EhException(error.message)

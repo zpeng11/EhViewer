@@ -117,11 +117,6 @@ object EhUrl {
         addQueryParameterIfNotBlank("nl", nl)
     }.buildString()
 
-    fun getArchiveUrl(gid: Long, token: String) = ehUrl("archiver.php") {
-        addQueryParameter("gid", "$gid")
-        addQueryParameter("token", token)
-    }.buildString()
-
     fun getTorrentUrl(gid: Long, token: String) = ehUrl("gallerytorrents.php") {
         addQueryParameter("gid", "$gid")
         addQueryParameter("t", token)

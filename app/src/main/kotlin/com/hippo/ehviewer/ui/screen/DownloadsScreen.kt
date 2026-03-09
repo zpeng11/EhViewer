@@ -105,6 +105,7 @@ import com.ehviewer.core.ui.util.thenIf
 import com.ehviewer.core.util.launch
 import com.ehviewer.core.util.launchIO
 import com.ehviewer.core.util.onEachLatest
+import com.ehviewer.core.util.withIOContext
 import com.ehviewer.core.util.withNonCancellableContext
 import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.EhDB
@@ -115,6 +116,7 @@ import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.download.DownloadsFilterMode
 import com.hippo.ehviewer.download.SortMode
+import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
 import com.hippo.ehviewer.ui.addToFavorites
@@ -185,6 +187,7 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         },
     )
     val hint = stringResource(R.string.search_bar_hint, title)
+    val localContentUnavailable = stringResource(R.string.local_content_unavailable)
     val isDownloadManagerInitialized by DownloadManager.isInitializedFlow.collectAsState()
     val list = if (isDownloadManagerInitialized) {
         remember(filterState, invalidateKey) {
@@ -612,7 +615,14 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         }
 
         fun onItemClick(info: DownloadInfo) {
-            navToReader(info.galleryInfo)
+            launch {
+                val canReadLocally = withIOContext { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(info.gid)) }
+                if (canReadLocally) {
+                    navToReader(info.galleryInfo)
+                } else {
+                    tip(localContentUnavailable)
+                }
+            }
         }
 
         fun toggleChecked(info: DownloadInfo) {
@@ -743,7 +753,16 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         if (!selectMode) {
             onClick(Icons.Default.Shuffle) {
                 if (list.isNotEmpty()) {
-                    withUIContext { navToReader(list.random().galleryInfo) }
+                    launch {
+                        val readable = withIOContext {
+                            list.toList().filter { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(it.gid)) }
+                        }
+                        if (readable.isNotEmpty()) {
+                            navToReader(readable.random().galleryInfo)
+                        } else {
+                            tip(localContentUnavailable)
+                        }
+                    }
                 }
             }
             onClick(Icons.AutoMirrored.Default.Sort) {

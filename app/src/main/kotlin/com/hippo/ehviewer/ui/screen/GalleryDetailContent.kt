@@ -183,10 +183,11 @@ fun GalleryDetailContent(
         stringResource(R.string.read_from, startPage + 1)
     }
     val hasLocalEntry by DownloadManager.collectContainDownloadInfo(galleryInfo.gid)
+    val canReadLocally by DownloadManager.collectCanReadGalleryLocally(galleryInfo.gid)
     val localContentUnavailable = stringResource(R.string.local_content_unavailable)
     val downloadButtonText = stringResource(R.string.delete_downloads)
     fun onReadButtonClick() {
-        if (hasLocalEntry) {
+        if (canReadLocally) {
             navToReader(galleryInfo.findBaseInfo(), startPage)
         } else {
             launch { snackbar(localContentUnavailable) }
@@ -285,7 +286,7 @@ fun GalleryDetailContent(
                             }
                             Button(
                                 onClick = ::onReadButtonClick,
-                                enabled = hasLocalEntry,
+                                enabled = canReadLocally,
                                 shapes = ButtonDefaults.shapes(),
                                 modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
                             ) {
@@ -318,7 +319,7 @@ fun GalleryDetailContent(
             }
             if (galleryDetail != null && previews != null) {
                 galleryPreview(galleryDetail, previews) {
-                    if (hasLocalEntry) {
+                    if (canReadLocally) {
                         navToReader(galleryDetail.galleryInfo, it)
                     } else {
                         launch { snackbar(localContentUnavailable) }
@@ -354,7 +355,7 @@ fun GalleryDetailContent(
                         Spacer(modifier = modifier.height(16.dp))
                         Button(
                             onClick = ::onReadButtonClick,
-                            enabled = hasLocalEntry,
+                            enabled = canReadLocally,
                             shapes = ButtonDefaults.shapes(),
                             modifier = Modifier.height(56.dp).padding(horizontal = 16.dp).width(192.dp),
                         ) {
@@ -396,7 +397,7 @@ fun GalleryDetailContent(
             }
             if (galleryDetail != null && previews != null) {
                 galleryPreview(galleryDetail, previews) {
-                    if (hasLocalEntry) {
+                    if (canReadLocally) {
                         navToReader(galleryDetail.galleryInfo, it)
                     } else {
                         launch { snackbar(localContentUnavailable) }
