@@ -1,7 +1,5 @@
 package com.hippo.ehviewer.ui.screen
 
-import android.content.Context
-import android.view.ViewConfiguration
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,10 +22,11 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.HeartBroken
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -66,18 +65,13 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.BaseGalleryInfo
-import com.ehviewer.core.ui.component.FAB_ANIMATE_TIME
 import com.ehviewer.core.ui.component.FabLayout
 import com.ehviewer.core.ui.component.LocalSideSheetState
 import com.ehviewer.core.ui.component.ProvideSideSheetContent
-import com.ehviewer.core.ui.util.asyncState
 import com.ehviewer.core.ui.util.takeAndClear
 import com.ehviewer.core.ui.util.thenIf
 import com.ehviewer.core.util.launch
-import com.ehviewer.core.util.onEachLatest
 import com.ehviewer.core.util.withIOContext
-import com.ehviewer.core.util.withUIContext
-import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.asMutableState
 import com.hippo.ehviewer.collectAsState
@@ -101,7 +95,6 @@ import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlin.math.roundToInt
-import kotlinx.coroutines.delay
 import moe.tarsin.coroutines.runSwallowingWithUI
 import moe.tarsin.navigate
 import moe.tarsin.tip
@@ -132,8 +125,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     var route by viewModel.route
     var searchBarExpanded by rememberSaveable { mutableStateOf(false) }
     var searchBarOffsetY by remember { mutableIntStateOf(0) }
-    var fabExpanded by remember { mutableStateOf(false) }
-    var fabHidden by remember { mutableStateOf(false) }
 
     val dialogState by rememberUpdatedState(contextOf<DialogState>())
     val localFavoriteFoldersState by viewModel.localFavoriteFolders.collectAsState<List<LocalFavoriteFolder>, List<LocalFavoriteFolder>?>(null)
@@ -167,7 +158,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
 
     fun openLocalFolder(slot: Int? = null) {
         refresh(LocalFavoritesRoute(folderSlot = slot, keyword = keyword))
-        fabHidden = false
     }
 
     suspend fun selectFavoriteFolderTarget(): FavoriteFolderTarget? {
@@ -363,7 +353,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         expanded = searchBarExpanded,
         onExpandedChange = {
             searchBarExpanded = it
-            fabHidden = it
             if (it) checkedInfoMap.clear()
         },
         title = title,
@@ -371,6 +360,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         localSearch = true,
         searchBarOffsetY = { searchBarOffsetY },
         trailingIcon = {
+            var expanded by remember { mutableStateOf(false) }
             val sheetState = LocalSideSheetState.current
             IconButton(
                 onClick = {
@@ -384,22 +374,28 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             IconButton(onClick = { launch { sheetState.open() } }, shapes = IconButtonDefaults.shapes()) {
                 Icon(imageVector = Icons.Outlined.FolderSpecial, contentDescription = null)
             }
+            IconButton(onClick = { expanded = !expanded }, shapes = IconButtonDefaults.shapes()) {
+                Icon(imageVector = Icons.Default.MoreVert, contentDescription = null)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(
+                    text = { Text(text = stringResource(id = R.string.refresh)) },
+                    onClick = {
+                        expanded = false
+                        refresh()
+                    },
+                )
+            }
         },
     ) { contentPadding ->
         val height by collectListThumbSizeAsState()
         val showPages by Settings.showGalleryPages.collectAsState()
         val showProgress by Settings.showReadingProgress.collectAsState()
         val searchBarConnection = remember {
-            val slop = ViewConfiguration.get(contextOf<Context>()).scaledTouchSlop
             val topPaddingPx = with(density) { contentPadding.calculateTopPadding().roundToPx() }
             object : NestedScrollConnection {
                 override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                     val dy = -consumed.y
-                    if (dy >= slop) {
-                        fabHidden = true
-                    } else if (dy <= -slop / 2) {
-                        fabHidden = false
-                    }
                     searchBarOffsetY = (searchBarOffsetY - dy).roundToInt().coerceIn(-topPaddingPx, 0)
                     return Offset.Zero // We never consume it
                 }
@@ -495,41 +491,13 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         )
     }
 
-    val hideFab by asyncState(
-        produce = { fabHidden },
-        transform = {
-            onEachLatest { hide ->
-                if (!hide) delay(FAB_ANIMATE_TIME.toLong())
-            }
-        },
-    )
-
     FabLayout(
-        hidden = hideFab && !selectMode,
-        expanded = fabExpanded || selectMode,
-        onExpandChanged = {
-            fabExpanded = it
-            checkedInfoMap.clear()
-        },
+        hidden = !selectMode,
+        expanded = selectMode,
+        onExpandChanged = { if (!it) checkedInfoMap.clear() },
         autoCancel = !selectMode,
     ) {
-        if (!selectMode) {
-            onClick(Icons.Default.Shuffle) {
-                EhDB.randomLocalFav()?.let { info ->
-                    val canReadLocally = withIOContext { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(info.gid)) }
-                    withUIContext {
-                        if (canReadLocally) {
-                            navigate(info.asDst())
-                        } else {
-                            tip(localContentUnavailable)
-                        }
-                    }
-                }
-            }
-            onClick(Icons.Default.Refresh) {
-                refresh()
-            }
-        } else {
+        if (selectMode) {
             onClick(Icons.Default.DoneAll, autoClose = false) {
                 val info = data.itemSnapshotList.items.associateBy { it.gid }
                 checkedInfoMap.putAll(info)

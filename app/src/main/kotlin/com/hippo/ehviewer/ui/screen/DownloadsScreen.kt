@@ -1,7 +1,6 @@
 package com.hippo.ehviewer.ui.screen
 
 import android.content.Context
-import android.view.ViewConfiguration
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
@@ -30,7 +29,6 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
-import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
@@ -43,7 +41,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NewLabel
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -87,7 +84,6 @@ import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.TagNamespace
-import com.ehviewer.core.ui.component.FAB_ANIMATE_TIME
 import com.ehviewer.core.ui.component.FabLayout
 import com.ehviewer.core.ui.component.FastScrollLazyColumn
 import com.ehviewer.core.ui.component.FastScrollLazyVerticalStaggeredGrid
@@ -96,7 +92,6 @@ import com.ehviewer.core.ui.component.ProvideSideSheetContent
 import com.ehviewer.core.ui.icons.EhIcons
 import com.ehviewer.core.ui.icons.big.Download
 import com.ehviewer.core.ui.util.HapticFeedbackType
-import com.ehviewer.core.ui.util.asyncState
 import com.ehviewer.core.ui.util.ifTrueThen
 import com.ehviewer.core.ui.util.rememberHapticFeedback
 import com.ehviewer.core.ui.util.rememberInVM
@@ -104,10 +99,8 @@ import com.ehviewer.core.ui.util.takeAndClear
 import com.ehviewer.core.ui.util.thenIf
 import com.ehviewer.core.util.launch
 import com.ehviewer.core.util.launchIO
-import com.ehviewer.core.util.onEachLatest
 import com.ehviewer.core.util.withIOContext
 import com.ehviewer.core.util.withNonCancellableContext
-import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.asMutableState
@@ -156,8 +149,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
     var searchBarOffsetY by remember { mutableIntStateOf(0) }
     val animateItems by Settings.animateItems.collectAsState()
 
-    var fabExpanded by remember { mutableStateOf(false) }
-    var fabHidden by remember { mutableStateOf(false) }
     val checkedInfoMap = remember { mutableStateMapOf<Long, DownloadInfo>() }
     val selectMode by rememberUpdatedState(checkedInfoMap.isNotEmpty())
     DrawerHandle(!selectMode && !searchBarExpanded)
@@ -234,7 +225,25 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
     fun switchLabel(label: String?) {
         Settings.recentDownloadLabel.value = label
         filterState = filterState.copy(label = label)
-        fabHidden = false
+    }
+
+    suspend fun promptSortDownloads() {
+        val oldMode = SortMode.from(sortMode)
+        val sortModes = contextOf<Context>().resources.getStringArray(com.hippo.ehviewer.R.array.download_sort_modes).toList()
+        val (selected, checked) = awaitSelectItemWithCheckBox(
+            sortModes,
+            R.string.sort_by,
+            R.string.group_by_download_label,
+            SortMode.All.indexOfFirst { it.field == oldMode.field && it.order == oldMode.order },
+            oldMode.groupByDownloadLabel,
+        )
+        val mode = SortMode.All[selected].copy(groupByDownloadLabel = checked)
+        if (mode != oldMode) {
+            sortMode = mode.flag
+            isLoading = true
+            DownloadManager.sortDownloads(mode)
+            invalidateKey = !invalidateKey
+        }
     }
 
     suspend fun updateFavoritesInSelection(favorited: Boolean) {
@@ -542,7 +551,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         expanded = searchBarExpanded,
         onExpandedChange = {
             searchBarExpanded = it
-            fabHidden = it
             if (it) checkedInfoMap.clear()
         },
         title = title,
@@ -568,6 +576,13 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                 Icon(imageVector = Icons.Default.MoreVert, contentDescription = null)
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(
+                    text = { Text(text = stringResource(id = R.string.sort_by)) },
+                    onClick = {
+                        expanded = false
+                        launch { promptSortDownloads() }
+                    },
+                )
                 DropdownMenuItem(
                     text = { Text(text = stringResource(id = R.string.download_labels)) },
                     onClick = {
@@ -598,16 +613,10 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         val height by collectListThumbSizeAsState()
         val realPadding = contentPadding + PaddingValues(dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_list_margin_h), dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_list_margin_v))
         val searchBarConnection = remember {
-            val slop = ViewConfiguration.get(contextOf<Context>()).scaledTouchSlop
             val topPaddingPx = with(density) { contentPadding.calculateTopPadding().roundToPx() }
             object : NestedScrollConnection {
                 override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                     val dy = -consumed.y
-                    if (dy >= slop) {
-                        fabHidden = true
-                    } else if (dy <= -slop / 2) {
-                        fabHidden = false
-                    }
                     searchBarOffsetY = (searchBarOffsetY - dy).roundToInt().coerceIn(-topPaddingPx, 0)
                     return Offset.Zero // We never consume it
                 }
@@ -732,58 +741,13 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
         }
     }
 
-    val hideFab by asyncState(
-        produce = { fabHidden },
-        transform = {
-            onEachLatest { hide ->
-                if (!hide) delay(FAB_ANIMATE_TIME.toLong())
-            }
-        },
-    )
-
     FabLayout(
-        hidden = hideFab && !selectMode,
-        expanded = fabExpanded || selectMode,
-        onExpandChanged = {
-            fabExpanded = it
-            checkedInfoMap.clear()
-        },
+        hidden = !selectMode,
+        expanded = selectMode,
+        onExpandChanged = { if (!it) checkedInfoMap.clear() },
         autoCancel = !selectMode,
     ) {
-        if (!selectMode) {
-            onClick(Icons.Default.Shuffle) {
-                if (list.isNotEmpty()) {
-                    launch {
-                        val readable = withIOContext {
-                            list.toList().filter { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(it.gid)) }
-                        }
-                        if (readable.isNotEmpty()) {
-                            navToReader(readable.random().galleryInfo)
-                        } else {
-                            tip(localContentUnavailable)
-                        }
-                    }
-                }
-            }
-            onClick(Icons.AutoMirrored.Default.Sort) {
-                val oldMode = SortMode.from(sortMode)
-                val sortModes = contextOf<Context>().resources.getStringArray(com.hippo.ehviewer.R.array.download_sort_modes).toList()
-                val (selected, checked) = awaitSelectItemWithCheckBox(
-                    sortModes,
-                    R.string.sort_by,
-                    R.string.group_by_download_label,
-                    SortMode.All.indexOfFirst { it.field == oldMode.field && it.order == oldMode.order },
-                    oldMode.groupByDownloadLabel,
-                )
-                val mode = SortMode.All[selected].copy(groupByDownloadLabel = checked)
-                if (mode != oldMode) {
-                    sortMode = mode.flag
-                    isLoading = true
-                    DownloadManager.sortDownloads(mode)
-                    invalidateKey = !invalidateKey
-                }
-            }
-        } else {
+        if (selectMode) {
             onClick(Icons.Default.DoneAll, autoClose = false) {
                 val info = list.associateBy { it.gid }
                 checkedInfoMap.putAll(info)
