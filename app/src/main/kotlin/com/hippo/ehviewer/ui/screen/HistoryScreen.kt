@@ -61,6 +61,7 @@ import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadManager
+import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.Screen
@@ -174,7 +175,7 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
                                     true -> navigate(info.asDst())
                                     false -> tip(R.string.history_local_content_unavailable)
                                     null -> launch {
-                                        val resolved = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                                        val resolved = withIOContext { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(info.gid)) }
                                         localReadCache.complete(info.gid, resolved)
                                         if (resolved) {
                                             navigate(info.asDst())
@@ -187,7 +188,7 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
                             onLongClick = {
                                 launch {
                                     val resolved = canReadLocally ?: withIOContext {
-                                        DownloadManager.canReadGalleryLocally(info.gid)
+                                        LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(info.gid))
                                     }.also {
                                         localReadCache.complete(info.gid, it)
                                     }
@@ -259,7 +260,7 @@ private fun rememberHistoryLocalReadCache(historyData: LazyPagingItems<out Galle
         snapshotFlow { snapshotItems.map { it.gid } }.collectLatest { gids ->
             gids.forEach { gid ->
                 if (!cache.shouldWarm(gid)) return@forEach
-                val canReadLocally = DownloadManager.canReadGalleryLocally(gid)
+                val canReadLocally = LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(gid))
                 withContext(Dispatchers.Main.immediate) {
                     cache.complete(gid, canReadLocally)
                 }

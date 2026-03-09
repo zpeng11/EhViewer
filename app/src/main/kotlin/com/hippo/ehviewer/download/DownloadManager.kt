@@ -40,12 +40,11 @@ import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.mapNotNull
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
+import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.spider.COMIC_INFO_FILE
-import com.hippo.ehviewer.spider.SpiderDen
 import com.hippo.ehviewer.spider.SpiderQueen.Companion.SPIDER_INFO_FILENAME
 import com.hippo.ehviewer.spider.readComicInfo
 import com.hippo.ehviewer.spider.readCompatFromPath
-import com.hippo.ehviewer.spider.readFromCache
 import com.hippo.ehviewer.spider.toSimpleTags
 import com.hippo.ehviewer.util.AppConfig
 import com.hippo.ehviewer.util.insertWith
@@ -111,24 +110,11 @@ object DownloadManager {
 
     fun getDownloadInfo(gid: Long) = allInfoMap[gid]
 
-    fun getReadableDownloadInfo(gid: Long): DownloadInfo? {
-        val info = getDownloadInfo(gid) ?: return null
-        if (info.archiveFile != null) return info
-        val dirname = info.dirname ?: return null
-        val downloadDir = info.downloadDir ?: return null
-        downloadDir.find(SPIDER_INFO_FILENAME)?.let { spiderInfo ->
-            if (readCompatFromPath(spiderInfo)?.let { it.gid == info.gid && it.token == info.token } == true) return info
-        }
-        if (SpiderDen(info, dirname).getLocalPageCount() > 0) return info
-        return readFromCache(gid)?.takeIf { it.gid == info.gid && it.token == info.token }?.let { info }
-    }
+    fun getReadableDownloadInfo(gid: Long) = LocalLibraryResolver.resolveReadableEntry(getDownloadInfo(gid))
 
-    fun canReadGalleryLocally(gid: Long) = getReadableDownloadInfo(gid) != null
+    fun canReadGalleryLocally(gid: Long) = LocalLibraryResolver.canRead(getDownloadInfo(gid))
 
-    fun canExportDownload(gid: Long): Boolean {
-        val info = getDownloadInfo(gid) ?: return false
-        return info.archiveFile != null || info.downloadDir?.isDirectory == true
-    }
+    fun canExportDownload(gid: Long) = LocalLibraryResolver.canExport(getDownloadInfo(gid))
 
     @Stable
     @Composable

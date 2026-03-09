@@ -72,7 +72,8 @@ import com.hippo.ehviewer.download.archiveFile
 import com.hippo.ehviewer.gallery.Page
 import com.hippo.ehviewer.gallery.PageLoader
 import com.hippo.ehviewer.gallery.useArchivePageLoader
-import com.hippo.ehviewer.gallery.useEhPageLoader
+import com.hippo.ehviewer.library.LocalLibraryResolver
+import com.hippo.ehviewer.library.reader.useLocalGalleryPageLoader
 import com.hippo.ehviewer.ui.MainActivity
 import com.hippo.ehviewer.ui.Screen
 import com.hippo.ehviewer.ui.theme.EhTheme
@@ -418,7 +419,7 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
 context(_: Context, _: DialogState, nav: DestinationsNavigator)
 suspend inline fun <T> usePageLoader(args: ReaderScreenArgs, crossinline block: suspend (PageLoader) -> T) = when (args) {
     is ReaderScreenArgs.Gallery -> {
-        val info = checkNotNull(DownloadManager.getReadableDownloadInfo(args.info.gid)) {
+        val info = checkNotNull(LocalLibraryResolver.resolveReadableEntry(DownloadManager.getDownloadInfo(args.info.gid))) {
             string(R.string.local_content_unavailable)
         }
         val page = args.page.takeUnless { it == -1 } ?: EhDB.getReadProgress(info.gid)
@@ -426,7 +427,7 @@ suspend inline fun <T> usePageLoader(args: ReaderScreenArgs, crossinline block: 
         if (archive != null) {
             useArchivePageLoader(archive, info, page, info.hasAds, { error("Managed Archive have password???") }, block)
         } else {
-            useEhPageLoader(info, page, block)
+            useLocalGalleryPageLoader(info, page, block)
         }
     }
     is ReaderScreenArgs.Archive -> useArchivePageLoader(

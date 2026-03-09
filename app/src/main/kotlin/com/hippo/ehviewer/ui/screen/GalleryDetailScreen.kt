@@ -59,6 +59,7 @@ import com.hippo.ehviewer.client.data.fillInfo
 import com.hippo.ehviewer.client.getImageKey
 import com.hippo.ehviewer.coil.justDownload
 import com.hippo.ehviewer.download.DownloadManager
+import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.ktbuilder.executeIn
 import com.hippo.ehviewer.ktbuilder.imageRequest
 import com.hippo.ehviewer.spider.SpiderDen
@@ -270,7 +271,7 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                             onClick = {
                                 launchIO {
                                     val downloadInfo = DownloadManager.getDownloadInfo(gid)
-                                    val canExport = DownloadManager.canExportDownload(gid)
+                                    val canExport = LocalLibraryResolver.canExport(downloadInfo)
                                     if (!canExport) {
                                         awaitConfirmationOrCancel(
                                             showCancelButton = false,

@@ -82,6 +82,7 @@ import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.asMutableState
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadManager
+import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
 import com.hippo.ehviewer.ui.createLocalFavoriteFolder
@@ -425,7 +426,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                                 }
                             } else {
                                 launch {
-                                    val canReadLocally = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                                    val canReadLocally = withIOContext { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(info.gid)) }
                                     if (canReadLocally) {
                                         navigate(info.asDst())
                                     } else {
@@ -464,7 +465,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                                 }
                             } else {
                                 launch {
-                                    val canReadLocally = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                                    val canReadLocally = withIOContext { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(info.gid)) }
                                     if (canReadLocally) {
                                         navigate(info.asDst())
                                     } else {
@@ -515,7 +516,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         if (!selectMode) {
             onClick(Icons.Default.Shuffle) {
                 EhDB.randomLocalFav()?.let { info ->
-                    val canReadLocally = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                    val canReadLocally = withIOContext { LocalLibraryResolver.canRead(DownloadManager.getDownloadInfo(info.gid)) }
                     withUIContext {
                         if (canReadLocally) {
                             navigate(info.asDst())

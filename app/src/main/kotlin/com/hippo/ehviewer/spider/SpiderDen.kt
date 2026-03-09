@@ -24,11 +24,8 @@ import com.ehviewer.core.database.model.DownloadArtist
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.exists
 import com.ehviewer.core.files.find
-import com.ehviewer.core.files.isAnimatedForReader
-import com.ehviewer.core.files.isCifsDocumentPath
 import com.ehviewer.core.files.isDirectory
 import com.ehviewer.core.files.list
-import com.ehviewer.core.files.mkdirs
 import com.ehviewer.core.files.moveTo
 import com.ehviewer.core.files.openFileDescriptor
 import com.ehviewer.core.files.sendTo
@@ -49,19 +46,16 @@ import com.hippo.ehviewer.download.downloadLocation
 import com.hippo.ehviewer.download.tempDownloadDir
 import com.hippo.ehviewer.image.PathSource
 import com.hippo.ehviewer.jni.archiveFdBatch
-import com.hippo.ehviewer.util.AppConfig
+import com.hippo.ehviewer.library.content.LocalGalleryContent
 import com.hippo.ehviewer.util.FileUtils
 import com.hippo.ehviewer.util.copyTo
 import com.hippo.ehviewer.util.sha1
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.request
-import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-import kotlinx.coroutines.CancellationException
 import okio.Path
 
 class SpiderDen(val info: GalleryInfo) {
@@ -70,15 +64,11 @@ class SpiderDen(val info: GalleryInfo) {
         private set
 
     private var tempDownloadDir: Path? = null
+    private var localContentDelegate: LocalGalleryContent? = null
     private val saveAsCbz = Settings.saveAsCbz.value
     private val archiveName = "$gid.cbz"
 
     private val lock = ReentrantReadWriteLock()
-    private val readerSessionId = UUID.randomUUID().toString()
-    private val readerIsolationLock = Any()
-    private val readerIsolationMap = mutableMapOf<Int, ReaderIsolatedEntry>()
-    @Volatile
-    private var readerIsolationDir: Path? = null
 
     // Search in both directories to maintain compatibility
     private val fileCache by lazy {
@@ -92,9 +82,14 @@ class SpiderDen(val info: GalleryInfo) {
         downloadDir = downloadLocation / dirname
     }
 
-    private fun containInCache(index: Int): Boolean {
-        val key = getImageKey(gid, index)
-        return sCache.read(key) {} != null
+    private fun localContent(): LocalGalleryContent {
+        val current = localContentDelegate
+        if (current != null && current.downloadDir == downloadDir && current.resolvedTempDownloadDir == tempDownloadDir) {
+            return current
+        }
+        return LocalGalleryContent(info, downloadDir, tempDownloadDir).also {
+            localContentDelegate = it
+        }
     }
 
     private fun findImageFile(index: Int, temp: Boolean = false) = lock.read {
@@ -102,23 +97,7 @@ class SpiderDen(val info: GalleryInfo) {
         fileCache.entries.firstOrNull { (name) -> name.startsWith(head) && temp == name.endsWith(TEMP_SUFFIX) }?.value
     }
 
-    private fun containInDownloadDir(index: Int): Boolean = findImageFile(index) != null
-
-    private fun copyFromCacheToDownloadDir(index: Int): Boolean {
-        val dir = imageDir ?: return false
-        val key = getImageKey(gid, index)
-        return runCatching {
-            sCache.read(key) {
-                val extension = metadata.toFile().readText()
-                val file = dir.findDownloadFileForIndex(index, extension)
-                data sendTo file
-            } != null
-        }.onFailure {
-            logcat(it)
-        }.getOrDefault(false)
-    }
-
-    operator fun contains(index: Int): Boolean = containInCache(index) || containInDownloadDir(index)
+    operator fun contains(index: Int): Boolean = localContent().run { index in this }
 
     private fun removeFromCache(index: Int): Boolean {
         val key = getImageKey(gid, index)
@@ -192,139 +171,27 @@ class SpiderDen(val info: GalleryInfo) {
     }
 
     fun saveToPath(index: Int, file: Path): Boolean {
-        val key = getImageKey(gid, index)
-
-        // Read from diskCache first
-        sCache.read(key) {
-            runCatching {
-                data sendTo file
-                return true
-            }.onFailure {
-                logcat(it)
-                return false
-            }
-        }
-
-        // Read from download dir
-        runCatching {
-            requireNotNull(findImageFile(index)) sendTo file
-        }.onFailure {
-            logcat(it)
-            return false
-        }.onSuccess {
-            return true
-        }
-        return false
+        return localContent().saveToPath(index, file)
     }
 
     fun getExtension(index: Int): String? {
-        val key = getImageKey(gid, index)
-        return sCache.read(key) { metadata.toFile().readText() }
-            ?: findImageFile(index)?.name.let { FileUtils.getExtensionFromFilename(it) }
+        return localContent().getExtension(index)
     }
 
     fun getImageSource(index: Int): PathSource {
-        val key = getImageKey(gid, index)
-        val snapshot = sCache.openSnapshot(key)
-        if (snapshot != null) {
-            return object : PathSource, AutoCloseable by snapshot {
-                override val source = snapshot.data
-                override val type by lazy {
-                    snapshot.metadata.toFile().readText()
-                }
-            }
-        }
-        val source = requireNotNull(findImageFile(index)) { "Source $index not found!" }
-        return object : PathSource {
-            override val source = source
-            override val type by lazy {
-                FileUtils.getExtensionFromFilename(source.name)!!
-            }
-
-            override fun close() = Unit
-        }
+        return localContent().getImageSource(index)
     }
 
     fun getImageSourceForReader(index: Int): PathSource {
-        getCachedReaderIsolation(index)?.let(::createReaderIsolatedSource)?.let { return it }
-        val source = getImageSource(index)
-        if (!source.source.isCifsDocumentPath() || !source.source.isAnimatedForReader(source.type)) {
-            return source
-        }
-        val isolated = copyForReaderIsolationWithRetry(index, source)
-        return createReaderIsolatedSource(isolated)
+        return localContent().getImageSourceForReader(index)
     }
 
     fun getLocalPageCount(): Int {
-        downloadDir?.find(COMIC_INFO_FILE)?.let { file ->
-            readComicInfo(file)?.pageCount?.takeIf { it > 0 }?.let { return it }
-        }
-        val count = lock.read {
-            fileCache.keys.count { name ->
-                !name.endsWith(TEMP_SUFFIX) && FileNameRegex.matches(name)
-            }
-        }
-        return count.takeIf { it > 0 } ?: info.pages
+        return localContent().getLocalPageCount()
     }
 
     fun clearReaderIsolationCache() {
-        val dir = synchronized(readerIsolationLock) {
-            readerIsolationMap.clear()
-            readerIsolationDir.also { readerIsolationDir = null }
-        }
-        dir?.runCatching { delete() }?.onFailure(::logcat)
-    }
-
-    private fun getOrCreateReaderIsolationDir() = synchronized(readerIsolationLock) {
-        readerIsolationDir?.takeIf(Path::exists) ?: (AppConfig.tempDir / READER_ISOLATION_DIR / "$gid-$readerSessionId")
-            .apply { mkdirs() }
-            .also { readerIsolationDir = it }
-    }
-
-    private fun getCachedReaderIsolation(index: Int) = synchronized(readerIsolationLock) {
-        val entry = readerIsolationMap[index] ?: return@synchronized null
-        if (entry.path.exists()) {
-            entry
-        } else {
-            readerIsolationMap.remove(index)
-            null
-        }
-    }
-
-    private fun copyForReaderIsolationWithRetry(index: Int, source: PathSource): ReaderIsolatedEntry = source.use { pathSource ->
-        val type = pathSource.type.lowercase()
-        getCachedReaderIsolation(index)?.let { return@use it }
-        val dir = getOrCreateReaderIsolationDir()
-        val target = dir / perFilename(index, type)
-        var lastError: Throwable? = null
-        repeat(READER_COPY_MAX_ATTEMPTS) { attempt ->
-            val tempTarget = dir / "${target.name}.part"
-            runCatching {
-                if (tempTarget.exists()) tempTarget.delete()
-                pathSource.source sendTo tempTarget
-                if (target.exists()) target.delete()
-                tempTarget moveTo target
-                val entry = ReaderIsolatedEntry(target, type)
-                synchronized(readerIsolationLock) {
-                    readerIsolationMap[index] = entry
-                }
-                return@use entry
-            }.onFailure { err ->
-                lastError = err
-                runCatching { tempTarget.delete() }
-                if (err is CancellationException) throw err
-                if (attempt + 1 < READER_COPY_MAX_ATTEMPTS) {
-                    Thread.sleep(READER_COPY_RETRY_DELAY_MS)
-                }
-            }
-        }
-        throw IOException("Failed to isolate CIFS animated source for page $index after $READER_COPY_MAX_ATTEMPTS attempts", lastError)
-    }
-
-    private fun createReaderIsolatedSource(entry: ReaderIsolatedEntry) = object : PathSource {
-        override val source = entry.path
-        override val type = entry.type
-        override fun close() = Unit
+        localContent().clearReaderIsolationCache()
     }
 
     suspend fun archive() = saveAsCbz && downloadDir?.run {
@@ -376,12 +243,17 @@ class SpiderDen(val info: GalleryInfo) {
     }
 
     suspend fun initDownloadDirIfExist() {
-        downloadDir = getGalleryDownloadDir(info).takeIf { it.isDirectory }
-        tempDownloadDir = info.tempDownloadDir?.takeIf { it.isDirectory }
+        val content = LocalGalleryContent(info).also { it.initDownloadDirIfExist() }
+        downloadDir = content.downloadDir
+        tempDownloadDir = content.resolvedTempDownloadDir
+        localContentDelegate = content
     }
 
     suspend fun initDownloadDir() {
-        downloadDir = getGalleryDownloadDir(info).apply { mkdirs() }
+        val content = LocalGalleryContent(info).also { it.initDownloadDir() }
+        downloadDir = content.downloadDir
+        tempDownloadDir = content.resolvedTempDownloadDir
+        localContentDelegate = content
     }
 
     suspend fun writeComicInfo(fetchMetadata: Boolean = true) {
@@ -403,12 +275,8 @@ class SpiderDen(val info: GalleryInfo) {
 }
 
 private const val TEMP_SUFFIX = ".tmp"
-private const val READER_ISOLATION_DIR = "reader_cifs_isolation"
-private const val READER_COPY_MAX_ATTEMPTS = 2
-private const val READER_COPY_RETRY_DELAY_MS = 100L
 private val FileNameRegex = Regex("^\\d{8}\\.\\w{3,4}")
 private val FileHashRegex = Regex("/h/([0-9a-f]{40})")
-private data class ReaderIsolatedEntry(val path: Path, val type: String)
 
 fun perFilename(index: Int, extension: String = ""): String = "%08d.%s".format(index + 1, extension)
 
