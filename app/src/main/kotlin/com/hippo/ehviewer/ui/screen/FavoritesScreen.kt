@@ -22,11 +22,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.HeartBroken
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -151,13 +148,8 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             selectedExtraSlot == null && it in LocalFavoriteFolder.VALID_SLOT_RANGE
         }
 
-    fun refresh(newRoute: LocalFavoritesRoute = route.copy()) {
-        route = newRoute
-        data.refresh()
-    }
-
     fun openLocalFolder(slot: Int? = null) {
-        refresh(LocalFavoritesRoute(folderSlot = slot, keyword = keyword))
+        route = LocalFavoritesRoute(folderSlot = slot, keyword = keyword)
     }
 
     suspend fun selectFavoriteFolderTarget(): FavoriteFolderTarget? {
@@ -204,7 +196,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             if (changed > 0) {
                 tip(R.string.move_to_favorite_folder_success)
                 checkedInfoMap.clear()
-                data.refresh()
             } else {
                 tip(R.string.move_to_favorite_folder_failure)
             }
@@ -349,7 +340,7 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     DrawerHandle(!selectMode && !searchBarExpanded)
 
     SearchBarScreen(
-        onApplySearch = { refresh(LocalFavoritesRoute(folderSlot = route.folderSlot, keyword = it)) },
+        onApplySearch = { route = LocalFavoritesRoute(folderSlot = route.folderSlot, keyword = it) },
         expanded = searchBarExpanded,
         onExpandedChange = {
             searchBarExpanded = it
@@ -360,7 +351,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         localSearch = true,
         searchBarOffsetY = { searchBarOffsetY },
         trailingIcon = {
-            var expanded by remember { mutableStateOf(false) }
             val sheetState = LocalSideSheetState.current
             IconButton(
                 onClick = {
@@ -373,18 +363,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             }
             IconButton(onClick = { launch { sheetState.open() } }, shapes = IconButtonDefaults.shapes()) {
                 Icon(imageVector = Icons.Outlined.FolderSpecial, contentDescription = null)
-            }
-            IconButton(onClick = { expanded = !expanded }, shapes = IconButtonDefaults.shapes()) {
-                Icon(imageVector = Icons.Default.MoreVert, contentDescription = null)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                DropdownMenuItem(
-                    text = { Text(text = stringResource(id = R.string.refresh)) },
-                    onClick = {
-                        expanded = false
-                        refresh()
-                    },
-                )
             }
         },
     ) { contentPadding ->
@@ -486,7 +464,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
             searchBarOffsetY = { searchBarOffsetY },
             prefetchThumbnails = false,
             scrollToTopOnRefresh = selectedExtraSlot != null,
-            onRefresh = { refresh() },
             onLoading = { searchBarOffsetY = 0 },
         )
     }
@@ -513,7 +490,6 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                         removeFromFavorites(it)
                     }
                 }
-                data.refresh()
             }
         }
     }

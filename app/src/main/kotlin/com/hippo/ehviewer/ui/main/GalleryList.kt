@@ -83,7 +83,7 @@ fun GalleryList(
     searchBarOffsetY: () -> Int,
     prefetchThumbnails: Boolean = true,
     scrollToTopOnRefresh: Boolean = true,
-    onRefresh: () -> Unit,
+    onRefresh: (() -> Unit)? = null,
     onLoading: () -> Unit,
 ) {
     val marginH = dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_list_margin_h)
@@ -91,8 +91,8 @@ fun GalleryList(
 
     var isRefreshing by remember { mutableStateOf(false) }
     val refreshState = rememberPullToRefreshState()
-    Box(
-        modifier = modifier.pullToRefresh(
+    val refreshModifier = if (onRefresh != null) {
+        modifier.pullToRefresh(
             isRefreshing = isRefreshing,
             state = refreshState,
             enabled = data.loadState.refresh is LoadState.NotLoading,
@@ -109,7 +109,12 @@ fun GalleryList(
                 }
                 isRefreshing = false
             }
-        },
+        }
+    } else {
+        modifier
+    }
+    Box(
+        modifier = refreshModifier,
     ) {
         val showLoadStateIndicator = when (val state = data.loadState.append) {
             LoadState.Loading -> true
@@ -216,12 +221,14 @@ fun GalleryList(
             }
         }
 
-        PullToRefreshDefaults.LoadingIndicator(
-            state = refreshState,
-            isRefreshing = isRefreshing,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = contentPadding.calculateTopPadding())
-                .offset { IntOffset(0, searchBarOffsetY()) },
-        )
+        if (onRefresh != null) {
+            PullToRefreshDefaults.LoadingIndicator(
+                state = refreshState,
+                isRefreshing = isRefreshing,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = contentPadding.calculateTopPadding())
+                    .offset { IntOffset(0, searchBarOffsetY()) },
+            )
+        }
     }
 }
 
