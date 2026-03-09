@@ -274,7 +274,7 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                                     if (!canExport) {
                                         awaitConfirmationOrCancel(
                                             showCancelButton = false,
-                                            text = { Text(text = stringResource(id = R.string.download_gallery_first)) },
+                                            text = { Text(text = stringResource(id = R.string.local_content_unavailable)) },
                                         )
                                     } else {
                                         val info = galleryInfo!!

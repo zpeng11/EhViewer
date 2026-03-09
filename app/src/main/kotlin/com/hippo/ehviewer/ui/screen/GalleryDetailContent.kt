@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -109,7 +108,6 @@ import com.hippo.ehviewer.client.EhUrl
 import com.hippo.ehviewer.client.EhUtils
 import com.hippo.ehviewer.client.data.ListUrlBuilder
 import com.hippo.ehviewer.client.exception.EhException
-import com.hippo.ehviewer.client.exception.NoHathClientException
 import com.hippo.ehviewer.coil.PrefetchAround
 import com.hippo.ehviewer.coil.justDownload
 import com.hippo.ehviewer.collectAsState
@@ -123,7 +121,6 @@ import com.hippo.ehviewer.ui.confirmRemoveDownload
 import com.hippo.ehviewer.ui.destinations.GalleryCommentsScreenDestination
 import com.hippo.ehviewer.ui.getFavoriteIcon
 import com.hippo.ehviewer.ui.jumpToReaderByPage
-import com.hippo.ehviewer.ui.main.ArchiveList
 import com.hippo.ehviewer.ui.main.EhPreviewItem
 import com.hippo.ehviewer.ui.main.GalleryCommentCard
 import com.hippo.ehviewer.ui.main.GalleryDetailErrorTip
@@ -186,10 +183,13 @@ fun GalleryDetailContent(
         stringResource(R.string.read_from, startPage + 1)
     }
     val hasLocalEntry by DownloadManager.collectContainDownloadInfo(galleryInfo.gid)
+    val localContentUnavailable = stringResource(R.string.local_content_unavailable)
     val downloadButtonText = stringResource(R.string.delete_downloads)
     fun onReadButtonClick() {
-        if (galleryDetail != null || hasLocalEntry) {
+        if (hasLocalEntry) {
             navToReader(galleryInfo.findBaseInfo(), startPage)
+        } else {
+            launch { snackbar(localContentUnavailable) }
         }
     }
     fun onCategoryChipClick() {
@@ -285,6 +285,7 @@ fun GalleryDetailContent(
                             }
                             Button(
                                 onClick = ::onReadButtonClick,
+                                enabled = hasLocalEntry,
                                 shapes = ButtonDefaults.shapes(),
                                 modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
                             ) {
@@ -294,6 +295,7 @@ fun GalleryDetailContent(
                     } else {
                         Button(
                             onClick = ::onReadButtonClick,
+                            enabled = false,
                             shapes = ButtonDefaults.shapes(),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                         ) {
@@ -315,7 +317,13 @@ fun GalleryDetailContent(
                 }
             }
             if (galleryDetail != null && previews != null) {
-                galleryPreview(galleryDetail, previews) { navToReader(galleryDetail.galleryInfo, it) }
+                galleryPreview(galleryDetail, previews) {
+                    if (hasLocalEntry) {
+                        navToReader(galleryDetail.galleryInfo, it)
+                    } else {
+                        launch { snackbar(localContentUnavailable) }
+                    }
+                }
             }
         }
         else -> FastScrollLazyVerticalGrid(
@@ -346,6 +354,7 @@ fun GalleryDetailContent(
                         Spacer(modifier = modifier.height(16.dp))
                         Button(
                             onClick = ::onReadButtonClick,
+                            enabled = hasLocalEntry,
                             shapes = ButtonDefaults.shapes(),
                             modifier = Modifier.height(56.dp).padding(horizontal = 16.dp).width(192.dp),
                         ) {
@@ -386,7 +395,13 @@ fun GalleryDetailContent(
                 }
             }
             if (galleryDetail != null && previews != null) {
-                galleryPreview(galleryDetail, previews) { navToReader(galleryDetail.galleryInfo, it) }
+                galleryPreview(galleryDetail, previews) {
+                    if (hasLocalEntry) {
+                        navToReader(galleryDetail.galleryInfo, it)
+                    } else {
+                        launch { snackbar(localContentUnavailable) }
+                    }
+                }
             }
         }
     }
@@ -549,55 +564,6 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
                     )
                 }
             },
-        )
-        val signInFirst = stringResource(R.string.sign_in_first)
-        val noArchive = stringResource(R.string.no_archives)
-        val downloadStarted = stringResource(R.string.download_archive_started)
-        val downloadFailed = stringResource(R.string.download_archive_failure)
-        val archiveResult = remember(galleryDetail) {
-            async(Dispatchers.IO + Job(), CoroutineStart.LAZY) {
-                with(galleryDetail) {
-                    EhEngine.getArchiveList(gid, token)
-                }
-            }
-        }
-        fun showArchiveDialog() {
-            launchIO {
-                if (galleryDetail.apiUid < 0) {
-                    snackbar(signInFirst)
-                } else {
-                    runSuspendCatching {
-                        val (archiveList, funds) = bgWork { archiveResult.await() }
-                        if (archiveList.isEmpty()) {
-                            snackbar(noArchive)
-                        } else {
-                            val selected = showNoButton {
-                                ArchiveList(
-                                    funds = funds,
-                                    items = archiveList,
-                                    onItemClick = { resume(it) },
-                                )
-                            }
-                            EhUtils.downloadArchive(galleryDetail, selected)
-                            snackbar(downloadStarted)
-                        }
-                    }.onFailure {
-                        when (it) {
-                            is NoHathClientException -> snackbar(it.message!!)
-                            is EhException -> snackbar(it.displayString())
-                            else -> {
-                                logcat(it)
-                                snackbar(downloadFailed)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        EhIconButton(
-            icon = Icons.Default.FolderZip,
-            text = stringResource(id = R.string.archive),
-            onClick = ::showArchiveDialog,
         )
         val torrentText = stringResource(R.string.torrent_count, galleryDetail.torrentCount)
         val noTorrents = stringResource(R.string.no_torrents)

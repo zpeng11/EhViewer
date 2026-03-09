@@ -162,11 +162,15 @@ class SpiderQueen private constructor(val galleryInfo: GalleryInfo) : CoroutineS
     private suspend fun doPrepare() {
         spiderDen.initDownloadDirIfExist()
         val pages = Either.catch {
-            spiderInfo = readSpiderInfoFromLocal() ?: readSpiderInfoFromInternet()
+            spiderInfo = readSpiderInfoFromLocal() ?: SpiderInfo(
+                galleryInfo.gid,
+                galleryInfo.token,
+                spiderDen.getLocalPageCount(),
+            )
             spiderInfo.pages
         }.getOrElse {
             logcat(it)
-            galleryInfo.pages
+            spiderDen.getLocalPageCount()
         }
         check(pages > 0)
         pageStates = IntArray(pages)

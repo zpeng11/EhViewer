@@ -259,6 +259,7 @@
     <string name="clear_all_history">清除所有阅读历史？</string>
     <string name="remove_from_history">移出历史</string>
     <string name="history_local_content_unavailable">当前只能打开有本地内容的历史项</string>
+    <string name="local_content_unavailable">当前只能打开有本地内容的项目</string>
     <!-- Filter -->
     <string name="filter">屏蔽列表</string>
     <string name="filter_title">标题</string>

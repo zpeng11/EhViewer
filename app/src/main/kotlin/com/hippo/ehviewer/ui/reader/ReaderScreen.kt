@@ -418,9 +418,11 @@ fun ReaderScreen(pageLoader: PageLoader, info: BaseGalleryInfo?) {
 context(_: Context, _: DialogState, nav: DestinationsNavigator)
 suspend inline fun <T> usePageLoader(args: ReaderScreenArgs, crossinline block: suspend (PageLoader) -> T) = when (args) {
     is ReaderScreenArgs.Gallery -> {
-        val info = args.info
+        val info = checkNotNull(DownloadManager.getReadableDownloadInfo(args.info.gid)) {
+            string(R.string.local_content_unavailable)
+        }
         val page = args.page.takeUnless { it == -1 } ?: EhDB.getReadProgress(info.gid)
-        val archive = DownloadManager.getDownloadInfo(info.gid)?.archiveFile
+        val archive = info.archiveFile
         if (archive != null) {
             useArchivePageLoader(archive, info, page, info.hasAds, { error("Managed Archive have password???") }, block)
         } else {

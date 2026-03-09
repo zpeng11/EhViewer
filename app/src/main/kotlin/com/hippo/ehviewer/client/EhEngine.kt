@@ -17,7 +17,6 @@ package com.hippo.ehviewer.client
 
 import arrow.core.Either
 import arrow.core.left
-import arrow.core.partially2
 import arrow.core.right
 import arrow.fx.coroutines.parMap
 import arrow.fx.coroutines.parZip
@@ -40,7 +39,6 @@ import com.hippo.ehviewer.client.exception.NoHathClientException
 import com.hippo.ehviewer.client.exception.NoHitsFoundException
 import com.hippo.ehviewer.client.exception.NotLoggedInException
 import com.hippo.ehviewer.client.exception.ParseException
-import com.hippo.ehviewer.client.parser.ArchiveParser
 import com.hippo.ehviewer.client.parser.EventPaneParser
 import com.hippo.ehviewer.client.parser.GalleryApiParser
 import com.hippo.ehviewer.client.parser.GalleryDetailParser
@@ -213,13 +211,6 @@ object EhEngine {
         "${id}x$key"
     }
 
-    suspend fun getArchiveList(gid: Long, token: String): ArchiveParser.Result {
-        val url = EhUrl.getArchiveUrl(gid, token)
-        val funds = if (EhUtils.isExHentai) getFunds() else null
-        return ehRequest(url, EhUrl.getGalleryDetailUrl(gid, token))
-            .fetchUsingAsByteBuffer(ArchiveParser::parse.partially2(funds))
-    }
-
     suspend fun getImageLimits() = parZip(
         { ehRequest(EhUrl.URL_HOME).fetchUsingAsByteBuffer(HomeParser::parse) },
         { getFunds() },
@@ -304,36 +295,6 @@ object EhEngine {
         // https://youtrack.jetbrains.com/issue/KTOR-478
         val location = response.headers["Location"] ?: url
         ehRequest(location, url).fetchUsingAsByteBuffer(GalleryDetailParser::parseComments)
-    }
-
-    suspend fun downloadArchive(gid: Long, token: String, res: String, isHath: Boolean): String? {
-        val url = EhUrl.getArchiveUrl(gid, token)
-        val referer = EhUrl.getGalleryDetailUrl(gid, token)
-        val request = ehRequest(url, referer, EhUrl.origin) {
-            formBody {
-                if (isHath) {
-                    append("hathdl_xres", res)
-                } else {
-                    append("dltype", res)
-                    if (res == "org") {
-                        append("dlcheck", "Download Original Archive")
-                    } else {
-                        append("dlcheck", "Download Resample Archive")
-                    }
-                }
-            }
-        }
-        var result = request.fetchUsingAsByteBuffer(ArchiveParser::parseArchiveUrl)
-        if (!isHath) {
-            if (result == null) {
-                // Wait for the server to prepare archives
-                delay(1000)
-                result = request.fetchUsingAsByteBuffer(ArchiveParser::parseArchiveUrl)
-                if (result == null) throw EhException("Archive unavailable")
-            }
-            return result
-        }
-        return null
     }
 
     suspend fun resetImageLimits() = ehRequest(EhUrl.URL_HOME) {

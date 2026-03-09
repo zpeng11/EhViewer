@@ -75,11 +75,13 @@ import com.ehviewer.core.ui.util.takeAndClear
 import com.ehviewer.core.ui.util.thenIf
 import com.ehviewer.core.util.launch
 import com.ehviewer.core.util.onEachLatest
+import com.ehviewer.core.util.withIOContext
 import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.asMutableState
 import com.hippo.ehviewer.collectAsState
+import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
 import com.hippo.ehviewer.ui.createLocalFavoriteFolder
@@ -115,6 +117,7 @@ private sealed interface FavoriteFolderTarget {
 fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, viewModel: FavoritesViewModel = viewModel()) = Screen(navigator) {
     // Immutables
     val localFavName = stringResource(R.string.local_favorites)
+    val localContentUnavailable = stringResource(R.string.local_content_unavailable)
     val collectionsTitle = stringResource(R.string.collections)
     val createFolderTitle = stringResource(R.string.create_favorite_folder_title)
     val renameFolderTitle = stringResource(R.string.rename_favorite_folder_title)
@@ -421,7 +424,14 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                                     checkedInfoMap[info.gid] = info
                                 }
                             } else {
-                                navigate(info.asDst())
+                                launch {
+                                    val canReadLocally = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                                    if (canReadLocally) {
+                                        navigate(info.asDst())
+                                    } else {
+                                        tip(localContentUnavailable)
+                                    }
+                                }
                             }
                         },
                         onLongClick = {
@@ -453,7 +463,14 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                                     checkedInfoMap[info.gid] = info
                                 }
                             } else {
-                                navigate(info.asDst())
+                                launch {
+                                    val canReadLocally = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                                    if (canReadLocally) {
+                                        navigate(info.asDst())
+                                    } else {
+                                        tip(localContentUnavailable)
+                                    }
+                                }
                             }
                         },
                         onLongClick = {
@@ -498,7 +515,14 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
         if (!selectMode) {
             onClick(Icons.Default.Shuffle) {
                 EhDB.randomLocalFav()?.let { info ->
-                    withUIContext { navigate(info.asDst()) }
+                    val canReadLocally = withIOContext { DownloadManager.canReadGalleryLocally(info.gid) }
+                    withUIContext {
+                        if (canReadLocally) {
+                            navigate(info.asDst())
+                        } else {
+                            tip(localContentUnavailable)
+                        }
+                    }
                 }
             }
             onClick(Icons.Default.Refresh) {

@@ -255,6 +255,18 @@ class SpiderDen(val info: GalleryInfo) {
         return createReaderIsolatedSource(isolated)
     }
 
+    fun getLocalPageCount(): Int {
+        downloadDir?.find(COMIC_INFO_FILE)?.let { file ->
+            readComicInfo(file)?.pageCount?.takeIf { it > 0 }?.let { return it }
+        }
+        val count = lock.read {
+            fileCache.keys.count { name ->
+                !name.endsWith(TEMP_SUFFIX) && FileNameRegex.matches(name)
+            }
+        }
+        return count.takeIf { it > 0 } ?: info.pages
+    }
+
     fun clearReaderIsolationCache() {
         val dir = synchronized(readerIsolationLock) {
             readerIsolationMap.clear()

@@ -83,7 +83,6 @@ object Settings : DataStorePreferences(null) {
     val timeoutSpeed = intPref("timeout_speed_level", 6)
     val downloadOriginImage = boolPref("download_origin_image", false)
     val saveAsCbz = boolPref("save_as_cbz", false)
-    val archiveMetadata = boolPref("archive_metadata", true)
 
     // Privacy
     val security = boolPref("require_unlock", false)
