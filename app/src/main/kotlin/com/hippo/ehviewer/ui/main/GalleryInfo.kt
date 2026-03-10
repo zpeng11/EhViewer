@@ -54,6 +54,7 @@ import com.hippo.ehviewer.util.FavouriteStatusRouter
 context(_: SharedTransitionScope, _: TransitionsVisibilityScope)
 fun GalleryInfoListItem(
     onClick: () -> Unit,
+    onThumbClick: (() -> Unit)? = null,
     onLongClick: () -> Unit,
     info: GalleryInfo,
     showPages: Boolean,
@@ -75,6 +76,7 @@ fun GalleryInfoListItem(
             EhThumbCard(
                 key = info,
                 localOnly = localOnlyThumb,
+                onClick = onThumbClick,
                 modifier = Modifier.aspectRatio(DEFAULT_RATIO),
             )
         }

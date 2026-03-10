@@ -76,28 +76,41 @@ context(_: SharedTransitionScope, _: TransitionsVisibilityScope, _: SETNodeGener
 fun EhThumbCard(
     key: GalleryInfo,
     localOnly: Boolean = false,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-) = Card(modifier = modifier) {
-    SharedElementBox(key = "${key.gid}", shape = ShapeDefaults.Medium) {
-        var contentScale by remember(key) { mutableStateOf(ContentScale.Fit) }
-        val request = requestOf(key, localOnly)
-        val painter = rememberAsyncImagePainter(
-            model = request,
-            onSuccess = {
-                if (it.result.image.shouldCrop) {
-                    contentScale = ContentScale.Crop
-                }
-            },
-        )
-        val state by painter.state.collectAsState()
-        Image(
-            painter = painter,
-            contentDescription = null,
-            modifier = Modifier.thenIf(state !is AsyncImagePainter.State.Success) {
-                // Keep applying this when state is `Loading` to avoid cutting off the ripple
-                clickable { if (state is AsyncImagePainter.State.Error) painter.restart() }
-            }.fillMaxSize(),
-            contentScale = contentScale,
-        )
+) {
+    val content: @Composable () -> Unit = {
+        SharedElementBox(key = "${key.gid}", shape = ShapeDefaults.Medium) {
+            var contentScale by remember(key) { mutableStateOf(ContentScale.Fit) }
+            val request = requestOf(key, localOnly)
+            val painter = rememberAsyncImagePainter(
+                model = request,
+                onSuccess = {
+                    if (it.result.image.shouldCrop) {
+                        contentScale = ContentScale.Crop
+                    }
+                },
+            )
+            val state by painter.state.collectAsState()
+            Image(
+                painter = painter,
+                contentDescription = null,
+                modifier = Modifier.thenIf(state !is AsyncImagePainter.State.Success) {
+                    // Keep applying this when state is `Loading` to avoid cutting off the ripple
+                    clickable { if (state is AsyncImagePainter.State.Error) painter.restart() }
+                }.fillMaxSize(),
+                contentScale = contentScale,
+            )
+        }
+    }
+
+    if (onClick == null) {
+        Card(modifier = modifier) {
+            content()
+        }
+    } else {
+        Card(onClick = onClick, modifier = modifier) {
+            content()
+        }
     }
 }

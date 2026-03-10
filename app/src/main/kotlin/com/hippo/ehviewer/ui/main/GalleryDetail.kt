@@ -84,12 +84,14 @@ fun GalleryDetailHeaderCard(
     onUploaderChipClick: () -> Unit,
     onBlockUploaderIconClick: () -> Unit,
     onCategoryChipClick: () -> Unit,
+    localOnlyThumb: Boolean = false,
     modifier: Modifier = Modifier,
 ) = ElevatedCard(modifier = modifier) {
     Row {
         with(detailThumbGenerator) {
             EhThumbCard(
                 key = remember(info.gid) { info },
+                localOnly = localOnlyThumb,
                 modifier = Modifier.size(
                     dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_detail_thumb_width),
                     dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_detail_thumb_height),

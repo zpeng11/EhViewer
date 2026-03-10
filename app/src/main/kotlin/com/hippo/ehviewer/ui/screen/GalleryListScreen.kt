@@ -441,7 +441,7 @@ fun AnimatedVisibilityScope.GalleryListScreen(
     }
 
     class GalleryDetailUrlSuggestion(gid: Long, token: String) : UrlSuggestion() {
-        override val destination = gid asDstWith token
+        override val destination = gid asDetailDstWith token
     }
 
     class GalleryPageUrlSuggestion(gid: Long, pToken: String, page: Int) : UrlSuggestion() {
@@ -539,6 +539,7 @@ fun AnimatedVisibilityScope.GalleryListScreen(
             detailItemContent = { info ->
                 GalleryInfoListItem(
                     onClick = { navigate(info.asDst()) },
+                    onThumbClick = { navigate(info.asDetailDst()) },
                     onLongClick = { launch { doGalleryInfoAction(info) } },
                     info = info,
                     showPages = showPages,

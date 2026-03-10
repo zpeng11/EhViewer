@@ -700,7 +700,7 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
                                     }
                                 },
                                 onThumbClick = {
-                                    navigate(info.galleryInfo.asDst())
+                                    navigate(info.galleryInfo.asDetailDst())
                                 },
                                 onLongClick = {
                                     toggleChecked(info)

@@ -185,6 +185,7 @@ fun AnimatedVisibilityScope.HistoryScreen(navigator: DestinationsNavigator) = Sc
                                     }
                                 }
                             },
+                            onThumbClick = { navigate(info.asDetailDst()) },
                             onLongClick = {
                                 launch {
                                     val resolved = canReadLocally ?: withIOContext {

@@ -409,6 +409,11 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
                                 }
                             }
                         },
+                        onThumbClick = if (selectMode) {
+                            null
+                        } else {
+                            { navigate(info.asDetailDst()) }
+                        },
                         onLongClick = {
                             checkedInfoMap[info.gid] = info
                         },

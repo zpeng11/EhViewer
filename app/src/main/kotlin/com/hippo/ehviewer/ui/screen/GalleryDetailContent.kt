@@ -114,6 +114,7 @@ import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ktbuilder.executeIn
 import com.hippo.ehviewer.ktbuilder.imageRequest
+import com.hippo.ehviewer.library.previews.loadLocalDetailPreviewPage
 import com.hippo.ehviewer.ui.GalleryInfoBottomSheet
 import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.MainActivity
@@ -245,7 +246,12 @@ fun GalleryDetailContent(
         }
     }
 
-    val previews = galleryDetail?.collectPreviewItems()
+    val previews = when {
+        canReadLocally -> galleryInfo.collectLocalPreviewItems()
+        galleryDetail != null -> galleryDetail.collectPreviewItems()
+        else -> null
+    }
+    val showingLocalPreviewGrid = canReadLocally && previews != null
     when {
         !windowSizeClass.isExpanded -> FastScrollLazyVerticalGrid(
             columns = GridCells.Fixed(thumbColumns),
@@ -265,6 +271,7 @@ fun GalleryDetailContent(
                     onUploaderChipClick = ::onUploaderChipClick.partially1(galleryInfo),
                     onBlockUploaderIconClick = ::showFilterUploaderDialog.partially1(galleryInfo),
                     onCategoryChipClick = ::onCategoryChipClick,
+                    localOnlyThumb = canReadLocally,
                     modifier = Modifier.fillMaxWidth().padding(vertical = keylineMargin),
                 )
             }
@@ -303,10 +310,12 @@ fun GalleryDetailContent(
                             Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
                         }
                     }
-                    if (getDetailError.isNotBlank()) {
-                        GalleryDetailErrorTip(error = getDetailError, onClick = onRetry)
-                    } else if (galleryDetail != null) {
+                    if (galleryDetail != null) {
                         BelowHeader(galleryDetail, voteTag)
+                    } else if (showingLocalPreviewGrid) {
+                        Spacer(modifier = Modifier.height(1.dp))
+                    } else if (getDetailError.isNotBlank()) {
+                        GalleryDetailErrorTip(error = getDetailError, onClick = onRetry)
                     } else {
                         Box(
                             modifier = Modifier.fillMaxSize().padding(keylineMargin),
@@ -317,10 +326,14 @@ fun GalleryDetailContent(
                     }
                 }
             }
-            if (galleryDetail != null && previews != null) {
-                galleryPreview(galleryDetail, previews) {
+            if (previews != null) {
+                galleryPreview(
+                    data = previews,
+                    isV2Thumb = galleryDetail?.previewList?.firstOrNull() is V2GalleryPreview,
+                    enablePrefetch = !canReadLocally,
+                ) {
                     if (canReadLocally) {
-                        navToReader(galleryDetail.galleryInfo, it)
+                        navToReader(galleryInfo.findBaseInfo(), it)
                     } else {
                         launch { snackbar(localContentUnavailable) }
                     }
@@ -346,6 +359,7 @@ fun GalleryDetailContent(
                         onUploaderChipClick = ::onUploaderChipClick.partially1(galleryInfo),
                         onBlockUploaderIconClick = ::showFilterUploaderDialog.partially1(galleryInfo),
                         onCategoryChipClick = ::onCategoryChipClick,
+                        localOnlyThumb = canReadLocally,
                         modifier = Modifier.width(dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_detail_card_landscape_width)).padding(vertical = keylineMargin),
                     )
                     Column(
@@ -381,10 +395,12 @@ fun GalleryDetailContent(
             ) {
                 LocalPinnableContainer.current!!.run { remember { pin() } }
                 Column {
-                    if (getDetailError.isNotBlank()) {
-                        GalleryDetailErrorTip(error = getDetailError, onClick = onRetry)
-                    } else if (galleryDetail != null) {
+                    if (galleryDetail != null) {
                         BelowHeader(galleryDetail, voteTag)
+                    } else if (showingLocalPreviewGrid) {
+                        Spacer(modifier = Modifier.height(1.dp))
+                    } else if (getDetailError.isNotBlank()) {
+                        GalleryDetailErrorTip(error = getDetailError, onClick = onRetry)
                     } else {
                         Box(
                             modifier = Modifier.fillMaxSize().padding(keylineMargin),
@@ -395,10 +411,14 @@ fun GalleryDetailContent(
                     }
                 }
             }
-            if (galleryDetail != null && previews != null) {
-                galleryPreview(galleryDetail, previews) {
+            if (previews != null) {
+                galleryPreview(
+                    data = previews,
+                    isV2Thumb = galleryDetail?.previewList?.firstOrNull() is V2GalleryPreview,
+                    enablePrefetch = !canReadLocally,
+                ) {
                     if (canReadLocally) {
-                        navToReader(galleryDetail.galleryInfo, it)
+                        navToReader(galleryInfo.findBaseInfo(), it)
                     } else {
                         launch { snackbar(localContentUnavailable) }
                     }
@@ -475,7 +495,7 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
         val info = galleryDetail.newerVersions[selected]
         withUIContext {
             // Can't use GalleryInfoArgs as thumbKey is null
-            navigate(info.gid asDstWith info.token)
+            navigate(info.gid asDetailDstWith info.token)
         }
     }
     val keylineMargin = dimensionResource(com.hippo.ehviewer.R.dimen.keyline_margin)
@@ -798,9 +818,53 @@ private fun GalleryDetail.collectPreviewItems() = rememberInVM(previewList) {
     }.flow.cachedIn(viewModelScope)
 }.collectAsLazyPagingItems()
 
+@Composable
+private fun GalleryInfo.collectLocalPreviewItems() = rememberInVM(gid) {
+    val gid = gid
+    Pager(
+        PagingConfig(
+            pageSize = 4,
+            prefetchDistance = 4,
+            initialLoadSize = 4,
+        ),
+    ) {
+        object : PagingSource<Int, GalleryPreview>() {
+            private var pageCount = pages
+
+            override fun getRefreshKey(state: PagingState<Int, GalleryPreview>) = state.getClippedRefreshKey()
+
+            override suspend fun load(params: LoadParams<Int>): LoadResult<Int, GalleryPreview> = withIOContext {
+                val itemCount = pageCount.takeIf { it > 0 } ?: Int.MAX_VALUE
+                val key = params.key ?: 0
+                val up = getOffset(params, key, itemCount)
+                val end = up + getLimit(params, key) - 1
+                runSuspendCatching {
+                    loadLocalDetailPreviewPage(gid, up, end)
+                }.foldToLoadResult { (items, total) ->
+                    pageCount = total
+                    val prevK = if (up <= 0 || items.isEmpty()) null else up
+                    val nextEnd = up + items.size - 1
+                    val nextK = if (nextEnd >= total - 1) null else nextEnd + 1
+                    LoadResult.Page(
+                        data = items,
+                        prevKey = prevK,
+                        nextKey = nextK,
+                        itemsBefore = up,
+                        itemsAfter = (total - nextEnd - 1).coerceAtLeast(0),
+                    )
+                }
+            }
+        }
+    }.flow.cachedIn(viewModelScope)
+}.collectAsLazyPagingItems()
+
 context(_: Context)
-private fun LazyGridScope.galleryPreview(detail: GalleryDetail, data: LazyPagingItems<GalleryPreview>, onClick: (Int) -> Unit) {
-    val isV2Thumb = detail.previewList.first() is V2GalleryPreview
+private fun LazyGridScope.galleryPreview(
+    data: LazyPagingItems<GalleryPreview>,
+    isV2Thumb: Boolean,
+    enablePrefetch: Boolean,
+    onClick: (Int) -> Unit,
+) {
     items(
         count = data.itemCount,
         key = data.itemKey(key = { item -> item.position }),
@@ -808,6 +872,8 @@ private fun LazyGridScope.galleryPreview(detail: GalleryDetail, data: LazyPaging
     ) { index ->
         val item = data[index]
         EhPreviewItem(item, index) { onClick(index) }
-        PrefetchAround(data, index, if (isV2Thumb) 20 else 6) { imageRequest(it) }
+        if (enablePrefetch) {
+            PrefetchAround(data, index, if (isV2Thumb) 20 else 6) { imageRequest(it) }
+        }
     }
 }
