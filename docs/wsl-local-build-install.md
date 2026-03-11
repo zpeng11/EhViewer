@@ -4,7 +4,7 @@ This guide is verified for the current local environment:
 
 - Project path: `/home/eleven/EhViewer`
 - Android SDK path: `/home/eleven/Android`
-- Wireless ADB target: `192.168.2.93:41763`
+- Wireless ADB target: `192.168.2.93:36729`
 - Shell: `zsh`
 
 ## 1. Install Linux build dependencies
@@ -124,15 +124,15 @@ app/build/outputs/native-debug-symbols/marshmallowRelease/native-debug-symbols.z
 Connect and install (default universal release):
 
 ```bash
-"$HOME/Android/platform-tools/adb" connect 192.168.2.93:41763
-"$HOME/Android/platform-tools/adb" -s 192.168.2.93:41763 install -r \
+"$HOME/Android/platform-tools/adb" connect 192.168.2.93:36729
+"$HOME/Android/platform-tools/adb" -s 192.168.2.93:36729 install -r \
   /home/eleven/EhViewer/app/build/outputs/apk/default/release/app-default-universal-release.apk
 ```
 
 Verify installed version:
 
 ```bash
-"$HOME/Android/platform-tools/adb" -s 192.168.2.93:41763 shell \
+"$HOME/Android/platform-tools/adb" -s 192.168.2.93:36729 shell \
   dumpsys package moe.tarsin.ehviewer | rg -n "versionName|versionCode|lastUpdateTime"
 ```
 
@@ -144,7 +144,7 @@ export ANDROID_HOME="$HOME/Android" ANDROID_SDK_ROOT="$HOME/Android" JAVA_HOME="
 source "$HOME/.cargo/env" && \
 ./gradlew :app:prepareLibraryDefinitionsDefaultRelease :app:prepareLibraryDefinitionsMarshmallowRelease --rerun -Prelease && \
 ./gradlew assembleRelease -Prelease && \
-"$HOME/Android/platform-tools/adb" connect 192.168.2.93:41763 && \
-"$HOME/Android/platform-tools/adb" -s 192.168.2.93:41763 install -r \
+"$HOME/Android/platform-tools/adb" connect 192.168.2.93:36729 && \
+"$HOME/Android/platform-tools/adb" -s 192.168.2.93:36729 install -r \
   /home/eleven/EhViewer/app/build/outputs/apk/default/release/app-default-universal-release.apk
 ```
