@@ -825,7 +825,7 @@ private fun GalleryInfo.collectLocalPreviewItems() = rememberInVM(gid) {
         PagingConfig(
             pageSize = 4,
             prefetchDistance = 4,
-            initialLoadSize = 4,
+            initialLoadSize = 2,
         ),
     ) {
         object : PagingSource<Int, GalleryPreview>() {

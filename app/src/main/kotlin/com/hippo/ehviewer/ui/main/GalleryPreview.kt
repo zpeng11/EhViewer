@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -27,7 +24,6 @@ import com.ehviewer.core.model.GalleryPreview
 import com.ehviewer.core.model.V2GalleryPreview
 import com.ehviewer.core.ui.component.CrystalCard
 import com.hippo.ehviewer.ktbuilder.imageRequest
-import com.hippo.ehviewer.ui.tools.shouldCrop
 
 @Composable
 @NonRestartableComposable
@@ -41,7 +37,6 @@ fun EhPreviewCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var contentScale by remember(model) { mutableStateOf(ContentScale.Fit) }
     val request = requestOf(model)
     val painter = rememberAsyncImagePainter(
         model = request,
@@ -60,19 +55,6 @@ fun EhPreviewCard(
                 it
             }
         },
-        onState = {
-            if (it is State.Success) {
-                if (model is V2GalleryPreview) {
-                    if (model.shouldCrop) {
-                        contentScale = ContentScale.Crop
-                    }
-                } else {
-                    if (it.result.image.shouldCrop) {
-                        contentScale = ContentScale.Crop
-                    }
-                }
-            }
-        },
     )
     CrystalCard(
         onClick = onClick,
@@ -87,7 +69,7 @@ fun EhPreviewCard(
             painter = painter,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = contentScale,
+            contentScale = ContentScale.Crop,
         )
     }
 }
