@@ -114,6 +114,7 @@ import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.ktbuilder.executeIn
 import com.hippo.ehviewer.ktbuilder.imageRequest
+import com.hippo.ehviewer.library.previews.LocalDetailPreviewSession
 import com.hippo.ehviewer.library.previews.loadLocalDetailPreviewPage
 import com.hippo.ehviewer.ui.GalleryInfoBottomSheet
 import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
@@ -174,6 +175,7 @@ fun GalleryDetailContent(
     val galleryDetail = galleryInfo.asGalleryDetail()
     val windowSizeClass = LocalWindowSizeClass.current
     val thumbColumns by Settings.thumbColumns.collectAsState()
+    val previewSpacing = dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_detail_preview_spacing)
     val readText = stringResource(R.string.read)
     val startPage by rememberInVM {
         EhDB.getReadProgressFlow(galleryInfo.gid)
@@ -257,8 +259,8 @@ fun GalleryDetailContent(
             columns = GridCells.Fixed(thumbColumns),
             contentPadding = contentPadding,
             modifier = modifier.padding(horizontal = keylineMargin),
-            horizontalArrangement = Arrangement.spacedBy(dimensionResource(id = com.hippo.ehviewer.R.dimen.strip_item_padding)),
-            verticalArrangement = Arrangement.spacedBy(dimensionResource(id = com.hippo.ehviewer.R.dimen.strip_item_padding_v)),
+            horizontalArrangement = Arrangement.spacedBy(previewSpacing),
+            verticalArrangement = Arrangement.spacedBy(previewSpacing),
         ) {
             item(
                 key = "header",
@@ -344,8 +346,8 @@ fun GalleryDetailContent(
             columns = GridCells.Fixed(thumbColumns),
             contentPadding = contentPadding,
             modifier = modifier.padding(horizontal = keylineMargin),
-            horizontalArrangement = Arrangement.spacedBy(dimensionResource(id = com.hippo.ehviewer.R.dimen.strip_item_padding)),
-            verticalArrangement = Arrangement.spacedBy(dimensionResource(id = com.hippo.ehviewer.R.dimen.strip_item_padding_v)),
+            horizontalArrangement = Arrangement.spacedBy(previewSpacing),
+            verticalArrangement = Arrangement.spacedBy(previewSpacing),
         ) {
             item(
                 key = "header",
@@ -821,6 +823,7 @@ private fun GalleryDetail.collectPreviewItems() = rememberInVM(previewList) {
 @Composable
 private fun GalleryInfo.collectLocalPreviewItems() = rememberInVM(gid) {
     val gid = gid
+    val previewSession = LocalDetailPreviewSession(gid)
     Pager(
         PagingConfig(
             pageSize = 4,
@@ -839,7 +842,7 @@ private fun GalleryInfo.collectLocalPreviewItems() = rememberInVM(gid) {
                 val up = getOffset(params, key, itemCount)
                 val end = up + getLimit(params, key) - 1
                 runSuspendCatching {
-                    loadLocalDetailPreviewPage(gid, up, end)
+                    loadLocalDetailPreviewPage(previewSession, up, end)
                 }.foldToLoadResult { (items, total) ->
                     pageCount = total
                     val prevK = if (up <= 0 || items.isEmpty()) null else up
@@ -871,7 +874,7 @@ private fun LazyGridScope.galleryPreview(
         contentType = { "preview" },
     ) { index ->
         val item = data[index]
-        EhPreviewItem(item, index) { onClick(index) }
+        EhPreviewItem(item) { onClick(index) }
         if (enablePrefetch) {
             PrefetchAround(data, index, if (isV2Thumb) 20 else 6) { imageRequest(it) }
         }

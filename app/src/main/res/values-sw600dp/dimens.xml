@@ -20,6 +20,7 @@
     <dimen name="single_max_width">480dp</dimen>
 
     <dimen name="strip_item_padding">12dp</dimen>
+    <dimen name="gallery_detail_preview_spacing">6dp</dimen>
 
     <dimen name="gallery_list_margin_h">20dp</dimen>
 

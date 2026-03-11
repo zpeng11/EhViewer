@@ -43,6 +43,7 @@
     <dimen name="image_search_max_size">240dp</dimen>
 
     <dimen name="strip_item_padding_v">@dimen/strip_item_padding</dimen>
+    <dimen name="gallery_detail_preview_spacing">4dp</dimen>
 
     <dimen name="gallery_detail_thumb_width">128dp</dimen>
     <dimen name="gallery_detail_thumb_height">192dp</dimen>

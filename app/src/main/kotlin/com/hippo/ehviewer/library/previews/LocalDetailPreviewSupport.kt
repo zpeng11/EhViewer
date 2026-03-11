@@ -25,11 +25,15 @@ import com.hippo.ehviewer.image.detectBorder
 import com.hippo.ehviewer.image.Image
 import com.hippo.ehviewer.image.ImageSource
 import com.hippo.ehviewer.image.PathSource
+import com.hippo.ehviewer.library.content.LocalGalleryContent
 import com.hippo.ehviewer.library.reader.useLocalGalleryPageLoader
 import com.hippo.ehviewer.util.AppConfig
 import com.hippo.ehviewer.util.ensureDirectory
+import arrow.fx.coroutines.parMap
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import okio.Path
 import splitties.init.appCtx
 
@@ -38,8 +42,10 @@ private const val LOCAL_DETAIL_PREVIEW_EXTENSION = "webp"
 private const val LOCAL_DETAIL_PREVIEW_WEBP_QUALITY = 80
 private const val CROP_THRESHOLD = 0.75f
 private const val RATIO_THRESHOLD = 2
+private const val LOCAL_DETAIL_PREVIEW_MAX_CONCURRENCY = 2
 
-private val localDetailPreviewMutex = Mutex()
+private val localDetailPreviewMutex = RefCountedMutexMap<DetailPreviewKey>()
+private val localDetailPreviewSemaphore = Semaphore(LOCAL_DETAIL_PREVIEW_MAX_CONCURRENCY)
 private val localDetailPreviewTargetSize by lazy {
     appCtx.resources.run {
         PreviewTargetSize(
@@ -63,6 +69,36 @@ private data class PreviewBitmap(
     val bitmap: Bitmap,
     val releaseAfterWrite: () -> Unit,
 )
+
+private data class DetailPreviewKey(
+    val gid: Long,
+    val index: Int,
+)
+
+private data class RefCountedMutexEntry(
+    val mutex: Mutex = Mutex(),
+    var refCount: Int = 0,
+)
+
+private class RefCountedMutexMap<K> {
+    private val entries = mutableMapOf<K, RefCountedMutexEntry>()
+
+    suspend fun <T> withLock(key: K, block: suspend () -> T): T {
+        val entry = synchronized(entries) {
+            entries.getOrPut(key, ::RefCountedMutexEntry).also { it.refCount++ }
+        }
+        return try {
+            entry.mutex.withLock { block() }
+        } finally {
+            synchronized(entries) {
+                entry.refCount--
+                if (entry.refCount == 0) {
+                    entries.remove(key)
+                }
+            }
+        }
+    }
+}
 
 private suspend inline fun <T> useLocalPreviewPageLoader(
     info: DownloadInfo,
@@ -206,12 +242,19 @@ private suspend fun writeStaticPreview(source: ImageSource, target: Path): Path?
     }.getOrNull()
 }
 
-private suspend fun ensureLocalDetailPreviewFile(loader: PageLoader, gid: Long, index: Int): Path? {
+private suspend fun ensureLocalDetailPreviewFile(
+    gid: Long,
+    index: Int,
+    openSource: () -> ImageSource,
+): Path? {
     val target = buildLocalDetailPreviewPath(gid, index)
     if (target.isFile) return target
-    return localDetailPreviewMutex.withLock {
+    return localDetailPreviewMutex.withLock(DetailPreviewKey(gid, index)) {
         if (target.isFile) return@withLock target
-        writeStaticPreview(loader.openSource(index), target)
+        localDetailPreviewSemaphore.withPermit {
+            if (target.isFile) return@withPermit target
+            writeStaticPreview(openSource(), target)
+        }
     }
 }
 
@@ -220,27 +263,102 @@ private data class LocalDetailPreviewPage(
     val total: Int,
 )
 
-suspend fun loadLocalDetailPreviewPage(gid: Long, start: Int, endInclusive: Int): Pair<List<GalleryPreview>, Int> {
-    val info = checkNotNull(DownloadManager.getReadableDownloadInfo(gid)) {
-        appCtx.getString(R.string.local_content_unavailable)
+private sealed interface LocalDetailPreviewBackend {
+    val total: Int
+
+    suspend fun loadPreviews(gid: Long, range: IntRange): List<GalleryPreview>
+}
+
+private class LocalContentPreviewBackend(
+    private val content: LocalGalleryContent,
+    override val total: Int,
+) : LocalDetailPreviewBackend {
+    override suspend fun loadPreviews(gid: Long, range: IntRange): List<GalleryPreview> = range.toList().parMap(
+        concurrency = LOCAL_DETAIL_PREVIEW_MAX_CONCURRENCY,
+    ) { index ->
+        createLocalDetailPreviewItem(gid, index) {
+            content.getImageSource(index)
+        }
     }
-    val page = useLocalPreviewPageLoader(info) { loader ->
-        val total = loader.size
-        check(total > 0) {
+}
+
+private class ArchivePreviewBackend(
+    private val info: DownloadInfo,
+    override val total: Int,
+) : LocalDetailPreviewBackend {
+    override suspend fun loadPreviews(gid: Long, range: IntRange): List<GalleryPreview> = useLocalPreviewPageLoader(info) { loader ->
+        range.map { index ->
+            createLocalDetailPreviewItem(gid, index) {
+                loader.openSource(index)
+            }
+        }
+    }
+}
+
+private suspend fun createLocalDetailPreviewItem(
+    gid: Long,
+    index: Int,
+    openSource: () -> ImageSource,
+) = V1GalleryPreview(
+    url = ensureLocalDetailPreviewFile(gid, index, openSource)?.toUri()?.toString().orEmpty(),
+    position = index,
+    pToken = "",
+)
+
+class LocalDetailPreviewSession(
+    private val gid: Long,
+) {
+    private val initMutex = Mutex()
+
+    @Volatile
+    private var backend: LocalDetailPreviewBackend? = null
+
+    suspend fun loadPage(start: Int, endInclusive: Int): Pair<List<GalleryPreview>, Int> {
+        val backend = getOrCreateBackend()
+        val range = start..endInclusive.coerceAtMost(backend.total - 1)
+        val page = LocalDetailPreviewPage(
+            previews = backend.loadPreviews(gid, range),
+            total = backend.total,
+        )
+        return page.previews to page.total
+    }
+
+    private suspend fun getOrCreateBackend(): LocalDetailPreviewBackend {
+        backend?.let { return it }
+        return initMutex.withLock {
+            backend ?: buildBackend().also { backend = it }
+        }
+    }
+
+    private suspend fun buildBackend(): LocalDetailPreviewBackend {
+        val info = checkNotNull(DownloadManager.getReadableDownloadInfo(gid)) {
             appCtx.getString(R.string.local_content_unavailable)
         }
-        val range = start..endInclusive.coerceAtMost(total - 1)
-        LocalDetailPreviewPage(
-            previews = range.map { index ->
-                val path = ensureLocalDetailPreviewFile(loader, gid, index)
-                V1GalleryPreview(
-                    url = path?.toUri()?.toString().orEmpty(),
-                    position = index,
-                    pToken = "",
-                )
-            },
-            total = total,
-        )
+        return info.archiveFile?.let {
+            val total = useLocalPreviewPageLoader(info) { loader ->
+                loader.size
+            }
+            check(total > 0) {
+                appCtx.getString(R.string.local_content_unavailable)
+            }
+            ArchivePreviewBackend(info, total)
+        } ?: run {
+            val dirname = checkNotNull(info.dirname) {
+                appCtx.getString(R.string.local_content_unavailable)
+            }
+            val content = LocalGalleryContent(info, dirname)
+            content.initDownloadDirIfExist()
+            val total = content.getLocalPageCount()
+            check(total > 0) {
+                appCtx.getString(R.string.local_content_unavailable)
+            }
+            LocalContentPreviewBackend(content, total)
+        }
     }
-    return page.previews to page.total
 }
+
+suspend fun loadLocalDetailPreviewPage(
+    session: LocalDetailPreviewSession,
+    start: Int,
+    endInclusive: Int,
+): Pair<List<GalleryPreview>, Int> = session.loadPage(start, endInclusive)

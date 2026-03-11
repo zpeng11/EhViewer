@@ -1,15 +1,11 @@
 package com.hippo.ehviewer.ui.main
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -78,22 +74,18 @@ fun EhPreviewCard(
 @NonRestartableComposable
 fun EhPreviewItem(
     galleryPreview: GalleryPreview?,
-    position: Int,
     onClick: () -> Unit,
-) = Column(horizontalAlignment = Alignment.CenterHorizontally) {
-    Box(contentAlignment = Alignment.Center) {
-        if (galleryPreview != null) {
-            EhPreviewCard(
-                model = galleryPreview,
-                onClick = onClick,
-                modifier = Modifier.aspectRatio(DEFAULT_RATIO),
-            )
-        } else {
-            CrystalCard(
-                onClick = onClick,
-                modifier = Modifier.aspectRatio(DEFAULT_RATIO),
-            ) {}
-        }
+) {
+    if (galleryPreview != null) {
+        EhPreviewCard(
+            model = galleryPreview,
+            onClick = onClick,
+            modifier = Modifier.aspectRatio(DEFAULT_RATIO),
+        )
+    } else {
+        CrystalCard(
+            onClick = onClick,
+            modifier = Modifier.aspectRatio(DEFAULT_RATIO),
+        ) {}
     }
-    Text(text = "${position + 1}")
 }
