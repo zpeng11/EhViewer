@@ -1,11 +1,17 @@
 package com.hippo.ehviewer.ui.main
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -30,6 +36,7 @@ fun requestOf(model: GalleryPreview) = with(LocalContext.current) {
 @Composable
 fun EhPreviewCard(
     model: GalleryPreview,
+    placeholderIndex: Int = model.position,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -52,21 +59,30 @@ fun EhPreviewCard(
             }
         },
     )
+    val state by painter.state.collectAsState()
     CrystalCard(
         onClick = onClick,
         onLongClick = {
-            if (painter.state.value is State.Error) {
+            if (state is State.Error) {
                 painter.restart()
             }
         },
         modifier = modifier,
     ) {
-        Image(
-            painter = painter,
-            contentDescription = null,
+        Box(
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painter,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            if (state.painter == null) {
+                PreviewPlaceholder(index = placeholderIndex)
+            }
+        }
     }
 }
 
@@ -74,11 +90,13 @@ fun EhPreviewCard(
 @NonRestartableComposable
 fun EhPreviewItem(
     galleryPreview: GalleryPreview?,
+    placeholderIndex: Int,
     onClick: () -> Unit,
 ) {
     if (galleryPreview != null) {
         EhPreviewCard(
             model = galleryPreview,
+            placeholderIndex = placeholderIndex,
             onClick = onClick,
             modifier = Modifier.aspectRatio(DEFAULT_RATIO),
         )
@@ -86,6 +104,22 @@ fun EhPreviewItem(
         CrystalCard(
             onClick = onClick,
             modifier = Modifier.aspectRatio(DEFAULT_RATIO),
-        ) {}
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                PreviewPlaceholder(index = placeholderIndex)
+            }
+        }
     }
+}
+
+@Composable
+private fun PreviewPlaceholder(index: Int) {
+    Text(
+        text = (index + 1).toString(),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+    )
 }

@@ -874,7 +874,7 @@ private fun LazyGridScope.galleryPreview(
         contentType = { "preview" },
     ) { index ->
         val item = data[index]
-        EhPreviewItem(item) { onClick(index) }
+        EhPreviewItem(item, placeholderIndex = index) { onClick(index) }
         if (enablePrefetch) {
             PrefetchAround(data, index, if (isV2Thumb) 20 else 6) { imageRequest(it) }
         }
