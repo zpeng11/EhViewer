@@ -28,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -116,16 +115,6 @@ fun SearchFilter(
             menuItems = languages,
             selectedItemIndex = language + 1,
             onSelectedItemIndexChange = { onLanguageChange(it - 1) },
-        )
-        val minRatingItems = stringArrayResource(id = com.hippo.ehviewer.R.array.search_min_rating)
-        val minRatingStr = stringResource(id = R.string.search_sr)
-        DropdownFilterChip(
-            label = minRatingStr,
-            menuItems = minRatingItems.asList(),
-            selectedItemIndex = (advancedOption.minRating - 1).coerceAtLeast(0),
-            onSelectedItemIndexChange = {
-                onAdvancedOptionChange(advancedOption.copy(minRating = if (it == 0) 0 else it + 1))
-            },
         )
         val pageErr1 = stringResource(R.string.search_sp_err1)
         val pageErr2 = stringResource(R.string.search_sp_err2)

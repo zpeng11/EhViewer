@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NewLabel
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AppBarRow
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -32,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.util.fastJoinToString
 import androidx.lifecycle.viewModelScope
 import com.ehviewer.core.data.model.asEntity
 import com.ehviewer.core.data.model.findBaseInfo
@@ -49,14 +46,12 @@ import com.ehviewer.core.ui.util.rememberInVM
 import com.ehviewer.core.util.launchIO
 import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.withIOContext
-import com.hippo.ehviewer.EhApplication.Companion.imageCache
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhEngine
 import com.hippo.ehviewer.client.EhUrl
 import com.hippo.ehviewer.client.EhUtils
 import com.hippo.ehviewer.client.data.fillInfo
-import com.hippo.ehviewer.client.getImageKey
 import com.hippo.ehviewer.coil.justDownload
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.library.LocalLibraryResolver
@@ -70,7 +65,6 @@ import com.hippo.ehviewer.ui.main.NavigationIcon
 import com.hippo.ehviewer.ui.navToReader
 import com.hippo.ehviewer.ui.openBrowser
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
-import com.hippo.ehviewer.ui.tools.awaitSelectTags
 import com.hippo.ehviewer.util.AppHelper
 import com.hippo.ehviewer.util.awaitActivityResult
 import com.hippo.ehviewer.util.bgWork
@@ -162,11 +156,6 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
         }
     }
 
-    val signInFirst = stringResource(R.string.sign_in_first)
-    val addTag = stringResource(id = R.string.action_add_tag)
-    val refresh = stringResource(id = R.string.refresh)
-    val clearCache = stringResource(id = R.string.clear_image_cache)
-    val cacheCleared = stringResource(R.string.image_cache_cleared)
     val openInBrowser = stringResource(id = R.string.open_in_other_app)
     val exportArchive = stringResource(id = R.string.export_as_archive)
     val exportSuccess = stringResource(id = R.string.export_as_archive_success)
@@ -205,60 +194,6 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                                 Icon(imageVector = Icons.Default.Share, contentDescription = null)
                             },
                             label = "",
-                        )
-                        clickableItem(
-                            onClick = {
-                                val detail = galleryInfo as? GalleryDetail ?: return@clickableItem
-                                launchIO {
-                                    if (detail.apiUid < 0) {
-                                        snackbar(signInFirst)
-                                    } else {
-                                        val tags = awaitSelectTags()
-                                        if (tags.isNotEmpty()) {
-                                            val text = tags.fastJoinToString(",")
-                                            detail.voteTag(text, 1)
-                                        }
-                                    }
-                                }
-                            },
-                            icon = {
-                                Icon(imageVector = Icons.Default.NewLabel, contentDescription = null)
-                            },
-                            label = addTag,
-                        )
-                        clickableItem(
-                            onClick = {
-                                // Invalidate cache
-                                detailCache.remove(gid)
-
-                                // Trigger recompose
-                                galleryInfo = galleryInfo?.findBaseInfo()
-                                getDetailError = ""
-                            },
-                            icon = {
-                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-                            },
-                            label = refresh,
-                        )
-                        clickableItem(
-                            onClick = {
-                                val gd = galleryInfo as? GalleryDetail ?: return@clickableItem
-                                launchIO {
-                                    awaitConfirmationOrCancel(
-                                        confirmText = R.string.clear_all,
-                                        title = R.string.clear_image_cache,
-                                    ) {
-                                        Text(text = stringResource(id = R.string.clear_image_cache_confirm))
-                                    }
-                                    repeat(gd.pages) {
-                                        val key = getImageKey(gd.gid, it)
-                                        imageCache.remove(key)
-                                    }
-                                    snackbar(cacheCleared)
-                                }
-                            },
-                            icon = {},
-                            label = clearCache,
                         )
                         clickableItem(
                             onClick = {

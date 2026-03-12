@@ -47,7 +47,6 @@ import com.hippo.ehviewer.client.parser.GalleryPageParser
 import com.hippo.ehviewer.client.parser.GalleryTokenApiParser
 import com.hippo.ehviewer.client.parser.HomeParser
 import com.hippo.ehviewer.client.parser.ProfileParser
-import com.hippo.ehviewer.client.parser.RateGalleryResult
 import com.hippo.ehviewer.client.parser.SignInParser
 import com.hippo.ehviewer.client.parser.TorrentParser
 import com.hippo.ehviewer.client.parser.TorrentResult
@@ -71,7 +70,6 @@ import io.ktor.utils.io.pool.useInstance
 import io.ktor.utils.io.readAvailable
 import java.io.File
 import java.nio.ByteBuffer
-import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerializationException
@@ -314,17 +312,6 @@ object EhEngine {
             }
         }.fetchUsingAsText { GalleryPageParser.parse(filterNot { it == '\\' }) }
     }
-
-    suspend fun rateGallery(apiUid: Long, apiKey: String?, gid: Long, token: String, rating: Float): RateGalleryResult = ehRequest(EhUrl.apiUrl, EhUrl.getGalleryDetailUrl(gid, token), EhUrl.origin) {
-        jsonBody {
-            put("method", "rategallery")
-            put("apiuid", apiUid)
-            put("apikey", requireNotNull(apiKey))
-            put("gid", gid)
-            put("token", token)
-            put("rating", ceil((rating * 2).toDouble()).toInt())
-        }
-    }.fetchUsingAsText(String::parseAs)
 
     suspend fun fillGalleryListByApi(galleryInfoList: List<GalleryInfo>, referer: String? = null) = galleryInfoList.chunked(MAX_REQUEST_SIZE).chunked(MAX_SEQUENTIAL_REQUESTS).forEachIndexed { index, chunk ->
         if (index != 0) {

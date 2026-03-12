@@ -32,7 +32,6 @@ import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.ui.component.CrystalCard
-import com.ehviewer.core.ui.component.GalleryListCardRating
 import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.listThumbGenerator
 import com.hippo.ehviewer.EhDB
@@ -99,18 +98,14 @@ fun DownloadCard(
                 }
             }
             Row {
-                Column {
-                    // Place the rating near the uploader text as there's more visual space
-                    GalleryListCardRating(rating = info.rating, modifier = Modifier.padding(top = 1.dp, bottom = 3.dp))
-                    val categoryColor = EhUtils.getCategoryColor(info.category)
-                    val categoryText = EhUtils.getCategory(info.category).uppercase()
-                    Text(
-                        text = categoryText,
-                        modifier = Modifier.clip(ShapeDefaults.Small).background(categoryColor).padding(vertical = 2.dp, horizontal = 8.dp),
-                        color = EhUtils.getCategoryTextColor(categoryColor),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
+                val categoryColor = EhUtils.getCategoryColor(info.category)
+                val categoryText = EhUtils.getCategory(info.category).uppercase()
+                Text(
+                    text = categoryText,
+                    modifier = Modifier.clip(ShapeDefaults.Small).background(categoryColor).padding(vertical = 2.dp, horizontal = 8.dp),
+                    color = EhUtils.getCategoryTextColor(categoryColor),
+                    style = MaterialTheme.typography.labelLarge,
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 val favoriteSlot by FavouriteStatusRouter.collectAsState(info) { it }
                 Column(modifier = Modifier.offset(4.dp).minimumInteractiveComponentSize()) {

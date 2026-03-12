@@ -74,14 +74,6 @@
         <item>1</item>
     </integer-array>
 
-    <string-array name="search_min_rating" translatable="false">
-        <item>@string/any</item>
-        <item>@string/star_2</item>
-        <item>@string/star_3</item>
-        <item>@string/star_4</item>
-        <item>@string/star_5</item>
-    </string-array>
-
     <string-array name="multi_thread_download_entries" translatable="false">
         <item>1</item>
         <item>3</item>

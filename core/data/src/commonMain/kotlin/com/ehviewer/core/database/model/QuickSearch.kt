@@ -25,9 +25,6 @@ data class QuickSearch(
     @ColumnInfo(name = "ADVANCE_SEARCH")
     var advanceSearch: Int = 0,
 
-    @ColumnInfo(name = "MIN_RATING")
-    var minRating: Int = 0,
-
     @ColumnInfo(name = "PAGE_FROM")
     var pageFrom: Int = 0,
 

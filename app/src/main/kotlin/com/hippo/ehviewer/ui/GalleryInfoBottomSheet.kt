@@ -57,10 +57,6 @@ private fun GalleryDetail.content(favoriteSlot: Int, favoriteName: String?) = ar
     R.string.key_size to size,
     R.string.key_favorite_count to favoriteCount.toString(),
     R.string.key_favorited to (favoriteSlot != NOT_FAVORITED).toString(),
-    R.string.key_rating_count to ratingCount.toString(),
-    R.string.key_rating to rating.toString(),
-    R.string.key_torrents to torrentCount.toString(),
-    R.string.key_torrent_url to EhUrl.getTorrentUrl(gid, token),
     R.string.favorite_name to favoriteName,
 )
 

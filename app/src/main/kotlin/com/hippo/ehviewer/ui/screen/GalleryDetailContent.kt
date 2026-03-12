@@ -1,13 +1,9 @@
 package com.hippo.ehviewer.ui.screen
 
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
-import androidx.annotation.StringRes
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,37 +20,27 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LocalPinnableContainer
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -66,7 +52,6 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import arrow.core.partially1
 import arrow.fx.coroutines.parMap
-import arrow.fx.coroutines.parZip
 import com.ehviewer.core.data.model.asGalleryDetail
 import com.ehviewer.core.data.model.findBaseInfo
 import com.ehviewer.core.database.model.Filter
@@ -77,27 +62,17 @@ import com.ehviewer.core.model.GalleryDetail
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.model.GalleryPreview
-import com.ehviewer.core.model.GalleryTagGroup
-import com.ehviewer.core.model.TagNamespace
 import com.ehviewer.core.model.V2GalleryPreview
 import com.ehviewer.core.model.VoteStatus
 import com.ehviewer.core.ui.component.CrystalCard
 import com.ehviewer.core.ui.component.FastScrollLazyVerticalGrid
-import com.ehviewer.core.ui.component.FilledTertiaryIconButton
-import com.ehviewer.core.ui.component.FilledTertiaryIconToggleButton
-import com.ehviewer.core.ui.component.GalleryDetailRating
-import com.ehviewer.core.ui.component.GalleryRatingBar
-import com.ehviewer.core.ui.icons.EhIcons
-import com.ehviewer.core.ui.icons.filled.Magnet
 import com.ehviewer.core.ui.util.LocalWindowSizeClass
 import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.flattenForEach
 import com.ehviewer.core.ui.util.isExpanded
 import com.ehviewer.core.ui.util.rememberInVM
-import com.ehviewer.core.util.async
 import com.ehviewer.core.util.launch
 import com.ehviewer.core.util.launchIO
-import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.withIOContext
 import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.EhDB
@@ -107,7 +82,6 @@ import com.hippo.ehviewer.client.EhFilter.remember
 import com.hippo.ehviewer.client.EhUrl
 import com.hippo.ehviewer.client.EhUtils
 import com.hippo.ehviewer.client.data.ListUrlBuilder
-import com.hippo.ehviewer.client.exception.EhException
 import com.hippo.ehviewer.coil.PrefetchAround
 import com.hippo.ehviewer.coil.justDownload
 import com.hippo.ehviewer.collectAsState
@@ -119,7 +93,6 @@ import com.hippo.ehviewer.library.previews.loadLocalDetailPreviewPage
 import com.hippo.ehviewer.ui.GalleryInfoBottomSheet
 import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.MainActivity
-import com.hippo.ehviewer.ui.confirmRemoveDownload
 import com.hippo.ehviewer.ui.destinations.GalleryCommentsScreenDestination
 import com.hippo.ehviewer.ui.getFavoriteIcon
 import com.hippo.ehviewer.ui.jumpToReaderByPage
@@ -128,13 +101,11 @@ import com.hippo.ehviewer.ui.main.GalleryCommentCard
 import com.hippo.ehviewer.ui.main.GalleryDetailErrorTip
 import com.hippo.ehviewer.ui.main.GalleryDetailHeaderCard
 import com.hippo.ehviewer.ui.main.GalleryTags
-import com.hippo.ehviewer.ui.main.TorrentList
 import com.hippo.ehviewer.ui.modifyFavorites
 import com.hippo.ehviewer.ui.navToReader
 import com.hippo.ehviewer.ui.openBrowser
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
-import com.hippo.ehviewer.ui.tools.awaitResult
 import com.hippo.ehviewer.ui.tools.awaitSelectAction
 import com.hippo.ehviewer.ui.tools.awaitSelectItem
 import com.hippo.ehviewer.ui.tools.dialog
@@ -142,21 +113,11 @@ import com.hippo.ehviewer.ui.tools.foldToLoadResult
 import com.hippo.ehviewer.ui.tools.getClippedRefreshKey
 import com.hippo.ehviewer.ui.tools.getLimit
 import com.hippo.ehviewer.ui.tools.getOffset
-import com.hippo.ehviewer.ui.tools.showNoButton
 import com.hippo.ehviewer.util.FavouriteStatusRouter
 import com.hippo.ehviewer.util.addTextToClipboard
-import com.hippo.ehviewer.util.bgWork
-import com.hippo.ehviewer.util.displayString
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import io.ktor.http.encodeURLParameter
-import kotlin.coroutines.resume
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import moe.tarsin.coroutines.runSuspendCatching
-import moe.tarsin.coroutines.runSwallowingWithUI
 import moe.tarsin.navigate
 import moe.tarsin.snackbar
 import moe.tarsin.string
@@ -185,10 +146,8 @@ fun GalleryDetailContent(
     } else {
         stringResource(R.string.read_from, startPage + 1)
     }
-    val hasLocalEntry by DownloadManager.collectContainDownloadInfo(galleryInfo.gid)
     val canReadLocally by DownloadManager.collectCanReadGalleryLocally(galleryInfo.gid)
     val localContentUnavailable = stringResource(R.string.local_content_unavailable)
-    val downloadButtonText = stringResource(R.string.delete_downloads)
     fun onReadButtonClick() {
         if (canReadLocally) {
             navToReader(galleryInfo.findBaseInfo(), startPage)
@@ -241,10 +200,57 @@ fun GalleryDetailContent(
             snackbar(filterAdded)
         }
     }
-    fun onDownloadButtonClick() {
-        if (hasLocalEntry) {
-            galleryDetail ?: return
-            launch { confirmRemoveDownload(galleryDetail) }
+    val favSlot by FavouriteStatusRouter.collectAsState(galleryInfo) { it }
+    val favoriteNameForSlot = rememberFavoriteNameResolver()
+    val favoriteButtonText = if (favSlot != NOT_FAVORITED) {
+        favoriteNameForSlot(favSlot) ?: stringResource(id = R.string.local_favorites)
+    } else {
+        stringResource(id = R.string.not_favorited)
+    }
+    val favoritesLock = remember { MutatorMutex() }
+    val removeSucceed = stringResource(R.string.remove_from_favorite_success)
+    val addSucceed = stringResource(R.string.add_to_favorite_success)
+    val addFailed = stringResource(R.string.add_to_favorite_failure)
+    fun onFavoriteButtonClick() {
+        launchIO {
+            favoritesLock.mutate {
+                runSuspendCatching {
+                    modifyFavorites(galleryInfo)
+                }.onSuccess { add ->
+                    snackbar(if (add) addSucceed else removeSucceed)
+                }.onFailure {
+                    snackbar(addFailed)
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun PrimaryActionButtons(modifier: Modifier = Modifier) {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilledTonalButton(
+                onClick = ::onFavoriteButtonClick,
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.weight(1F),
+            ) {
+                Icon(
+                    imageVector = getFavoriteIcon(favSlot != NOT_FAVORITED),
+                    contentDescription = null,
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(text = favoriteButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
+            }
+            Button(
+                onClick = ::onReadButtonClick,
+                enabled = canReadLocally,
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.weight(1F),
+            ) {
+                Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
+            }
         }
     }
 
@@ -284,34 +290,9 @@ fun GalleryDetailContent(
             ) {
                 LocalPinnableContainer.current!!.run { remember { pin() } }
                 Column {
-                    if (hasLocalEntry) {
-                        Row {
-                            FilledTonalButton(
-                                onClick = ::onDownloadButtonClick,
-                                shapes = ButtonDefaults.shapes(),
-                                modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
-                            ) {
-                                Text(text = downloadButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
-                            }
-                            Button(
-                                onClick = ::onReadButtonClick,
-                                enabled = canReadLocally,
-                                shapes = ButtonDefaults.shapes(),
-                                modifier = Modifier.padding(horizontal = 4.dp).weight(1F),
-                            ) {
-                                Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
-                            }
-                        }
-                    } else {
-                        Button(
-                            onClick = ::onReadButtonClick,
-                            enabled = false,
-                            shapes = ButtonDefaults.shapes(),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                        ) {
-                            Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
-                        }
-                    }
+                    PrimaryActionButtons(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    )
                     if (galleryDetail != null) {
                         BelowHeader(galleryDetail, voteTag)
                     } else if (showingLocalPreviewGrid) {
@@ -369,24 +350,9 @@ fun GalleryDetailContent(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Spacer(modifier = modifier.height(16.dp))
-                        Button(
-                            onClick = ::onReadButtonClick,
-                            enabled = canReadLocally,
-                            shapes = ButtonDefaults.shapes(),
-                            modifier = Modifier.height(56.dp).padding(horizontal = 16.dp).width(192.dp),
-                        ) {
-                            Text(text = readButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
-                        }
-                        if (hasLocalEntry) {
-                            Spacer(modifier = modifier.height(24.dp))
-                            FilledTonalButton(
-                                onClick = ::onDownloadButtonClick,
-                                shapes = ButtonDefaults.shapes(),
-                                modifier = Modifier.height(56.dp).padding(horizontal = 16.dp).width(192.dp),
-                            ) {
-                                Text(text = downloadButtonText, overflow = TextOverflow.Ellipsis, maxLines = 1)
-                            }
-                        }
+                        PrimaryActionButtons(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        )
                     }
                 }
             }
@@ -433,21 +399,6 @@ fun GalleryDetailContent(
 @Composable
 context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
 fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
-    @Composable
-    fun EhIconButton(
-        icon: ImageVector,
-        text: String,
-        onClick: () -> Unit,
-    ) = Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        FilledTertiaryIconButton(onClick = onClick) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-            )
-        }
-        Text(text = text)
-    }
-
     @Composable
     fun GalleryDetailComment(commentsList: List<GalleryComment>) {
         val maxShowCount = 2
@@ -513,187 +464,6 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
         }
         Spacer(modifier = Modifier.size(keylineMargin))
     }
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-    ) {
-        val favSlot by FavouriteStatusRouter.collectAsState(galleryDetail) { it }
-        val favoriteNameForSlot = rememberFavoriteNameResolver()
-        val favButtonText = if (favSlot != NOT_FAVORITED) {
-            favoriteNameForSlot(favSlot) ?: stringResource(id = R.string.local_favorites)
-        } else {
-            stringResource(id = R.string.not_favorited)
-        }
-        val favoritesLock = remember { MutatorMutex() }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            val removeSucceed = stringResource(R.string.remove_from_favorite_success)
-            val addSucceed = stringResource(R.string.add_to_favorite_success)
-            // val removeFailed = stringResource(R.string.remove_from_favorite_failure)
-            val addFailed = stringResource(R.string.add_to_favorite_failure)
-            FilledTertiaryIconToggleButton(
-                checked = favSlot != NOT_FAVORITED,
-                onCheckedChange = {
-                    launchIO {
-                        favoritesLock.mutate {
-                            runSuspendCatching {
-                                modifyFavorites(galleryDetail)
-                            }.onSuccess { add ->
-                                if (add) {
-                                    snackbar(addSucceed)
-                                } else {
-                                    snackbar(removeSucceed)
-                                }
-                            }.onFailure {
-                                // TODO: We don't know if it's add or remove
-                                snackbar(addFailed)
-                            }
-                        }
-                    }
-                },
-            ) {
-                Icon(
-                    imageVector = getFavoriteIcon(favSlot != NOT_FAVORITED),
-                    contentDescription = null,
-                )
-            }
-            Text(text = favButtonText)
-        }
-        EhIconButton(
-            icon = Icons.Default.Search,
-            text = stringResource(id = R.string.similar_gallery),
-            onClick = {
-                val keyword = EhUtils.extractTitle(galleryDetail.title)
-                val artistTag = galleryDetail.tagGroups.artistTag()
-                if (null != keyword) {
-                    navigate(
-                        ListUrlBuilder(
-                            mode = ListUrlBuilder.MODE_NORMAL,
-                            keyword = "\"" + keyword + "\"",
-                        ).asDst(),
-                    )
-                } else if (artistTag != null) {
-                    navigate(
-                        ListUrlBuilder(
-                            mode = ListUrlBuilder.MODE_TAG,
-                            keyword = artistTag,
-                        ).asDst(),
-                    )
-                } else if (null != galleryDetail.uploader) {
-                    navigate(
-                        ListUrlBuilder(
-                            mode = ListUrlBuilder.MODE_UPLOADER,
-                            keyword = galleryDetail.uploader,
-                        ).asDst(),
-                    )
-                }
-            },
-        )
-        val torrentText = stringResource(R.string.torrent_count, galleryDetail.torrentCount)
-        val noTorrents = stringResource(R.string.no_torrents)
-        val torrentResult = remember(galleryDetail) {
-            async(Dispatchers.IO + Job(), CoroutineStart.LAZY) {
-                parZip(
-                    { EhEngine.getTorrentList(galleryDetail.gid, galleryDetail.token) },
-                    { EhEngine.getTorrentKey() },
-                    { list, key -> list to key },
-                )
-            }
-        }
-        suspend fun showTorrentDialog() {
-            val (torrentList, key) = bgWork { torrentResult.await() }
-            if (torrentList.isEmpty()) {
-                snackbar(noTorrents)
-            } else {
-                val selected = showNoButton(false) {
-                    TorrentList(
-                        items = torrentList,
-                        onItemClick = { resume(it) },
-                    )
-                }
-                val hash = selected.url.dropLast(8).takeLast(40)
-                val name = selected.name.encodeURLParameter()
-                val tracker = EhUrl.getTrackerUrl(galleryDetail.gid, key).encodeURLParameter()
-                val link = "magnet:?xt=urn:btih:$hash&dn=$name&tr=$tracker"
-                val intent = Intent(Intent.ACTION_VIEW, link.toUri())
-                try {
-                    ctx.startActivity(intent)
-                } catch (_: ActivityNotFoundException) {
-                    withUIContext { addTextToClipboard(link, true) }
-                }
-            }
-        }
-        EhIconButton(
-            icon = EhIcons.Default.Magnet,
-            text = torrentText,
-            onClick = {
-                launchIO {
-                    when {
-                        galleryDetail.torrentCount <= 0 -> snackbar(noTorrents)
-                        else -> runSwallowingWithUI { showTorrentDialog() }
-                    }
-                }
-            },
-        )
-    }
-    Spacer(modifier = Modifier.size(keylineMargin))
-    fun getAllRatingText(rating: Float, ratingCount: Int): String = string(
-        R.string.rating_text,
-        string(getRatingText(rating)),
-        rating,
-        ratingCount,
-    )
-    var ratingText by rememberSaveable {
-        mutableStateOf(getAllRatingText(galleryDetail.rating, galleryDetail.ratingCount))
-    }
-    val rateSucceed = stringResource(R.string.rate_successfully)
-    val rateFailed = stringResource(R.string.rate_failed)
-    val signInFirst = stringResource(R.string.sign_in_first)
-    fun showRateDialog() {
-        launchIO {
-            if (galleryDetail.apiUid < 0) {
-                snackbar(signInFirst)
-                return@launchIO
-            }
-            val pendingRating = awaitResult(galleryDetail.rating.coerceAtLeast(.5f), title = R.string.rate) {
-                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    var text by remember { mutableIntStateOf(getRatingText(expectedValue)) }
-                    Text(text = stringResource(id = text), style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.size(keylineMargin))
-                    GalleryRatingBar(
-                        rating = expectedValue,
-                        onRatingChange = {
-                            expectedValue = it.coerceAtLeast(.5f)
-                            text = getRatingText(expectedValue)
-                        },
-                    )
-                }
-            }
-            galleryDetail.runSuspendCatching {
-                EhEngine.rateGallery(apiUid, apiKey, gid, token, pendingRating)
-            }.onSuccess { result ->
-                galleryDetail.apply {
-                    rating = result.rating
-                    ratingCount = result.ratingCount
-                }
-                ratingText = getAllRatingText(result.rating, result.ratingCount)
-                snackbar(rateSucceed)
-            }.onFailure {
-                logcat(it)
-                snackbar(rateFailed)
-            }
-        }
-    }
-    CrystalCard(onClick = ::showRateDialog) {
-        Column(
-            modifier = Modifier.padding(8.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            GalleryDetailRating(rating = galleryDetail.rating)
-            Spacer(modifier = Modifier.size(keylineMargin))
-            Text(text = ratingText)
-        }
-    }
-    Spacer(modifier = Modifier.size(keylineMargin))
     val tags = galleryDetail.tagGroups
     if (tags.isEmpty()) {
         Box(
@@ -759,23 +529,6 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
         Spacer(modifier = Modifier.size(dimensionResource(id = com.hippo.ehviewer.R.dimen.strip_item_padding_v)))
     }
 }
-
-@StringRes
-private fun getRatingText(rating: Float): Int = when ((rating * 2).roundToInt()) {
-    1 -> R.string.rating1
-    2 -> R.string.rating2
-    3 -> R.string.rating3
-    4 -> R.string.rating4
-    5 -> R.string.rating5
-    6 -> R.string.rating6
-    7 -> R.string.rating7
-    8 -> R.string.rating8
-    9 -> R.string.rating9
-    10 -> R.string.rating10
-    else -> R.string.rating_none
-}
-
-private fun List<GalleryTagGroup>.artistTag() = find { (ns, _) -> ns == TagNamespace.Artist || ns == TagNamespace.Cosplayer }?.let { (ns, tags) -> "${ns.value}:${tags[0].text}" }
 
 @Composable
 context(_: Context)

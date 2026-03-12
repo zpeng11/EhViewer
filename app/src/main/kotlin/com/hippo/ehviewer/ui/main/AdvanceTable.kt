@@ -15,6 +15,7 @@ object AdvanceTable {
 data class AdvancedSearchOption(
     @Transient
     val advanceSearch: Int = 0,
+    // Kept for backward-compatible DataStore decoding of older search filter state.
     val minRating: Int = 0,
     val fromPage: Int = 0,
     val toPage: Int = 0,

@@ -39,7 +39,6 @@ data class ListUrlBuilder(
     var hash: String? = null,
     var language: Int = -1,
     var advanceSearch: Int = -1,
-    var minRating: Int = -1,
     var pageFrom: Int = -1,
     var pageTo: Int = -1,
 ) {
@@ -74,7 +73,6 @@ data class ListUrlBuilder(
         category = q.category,
         keyword = q.keyword,
         advanceSearch = q.advanceSearch,
-        minRating = q.minRating,
         pageFrom = q.pageFrom,
         pageTo = q.pageTo,
         next = q.name.substringAfterLast('@', "").ifEmpty { null },
@@ -86,7 +84,6 @@ data class ListUrlBuilder(
         category = category,
         keyword = keyword,
         advanceSearch = advanceSearch,
-        minRating = minRating,
         pageFrom = pageFrom,
         pageTo = pageTo,
     )
@@ -105,9 +102,6 @@ data class ListUrlBuilder(
             return false
         }
         if (q.advanceSearch != advanceSearch) {
-            return false
-        }
-        if (q.minRating != minRating) {
             return false
         }
         return if (q.pageFrom != pageFrom) {
@@ -142,7 +136,6 @@ data class ListUrlBuilder(
             if (params["f_sft"] == "on") {
                 advanceSearch = advanceSearch or AdvanceTable.SFT
             }
-            minRating = params["f_srdd"]?.toIntOrNull() ?: -1
             pageFrom = params["f_spf"]?.toIntOrNull() ?: -1
             pageTo = params["f_spt"]?.toIntOrNull() ?: -1
         }
@@ -172,7 +165,7 @@ data class ListUrlBuilder(
             addQueryParameterIfNotBlank("seek", jumpTo)
             addQueryParameterIfNotBlank("range", range.takeIf { it > 0 }?.toString())
             // Advance search
-            if (advanceSearch > 0 || minRating > 0 || pageFrom > 0 || pageTo > 0) {
+            if (advanceSearch > 0 || pageFrom > 0 || pageTo > 0) {
                 addQueryParameter("advsearch", "1")
                 if (advanceSearch and AdvanceTable.SH != 0) {
                     addQueryParameter("f_sh", "on")
@@ -188,10 +181,6 @@ data class ListUrlBuilder(
                 }
                 if (advanceSearch and AdvanceTable.SFT != 0) {
                     addQueryParameter("f_sft", "on")
-                }
-                // Set min star
-                if (minRating > 0) {
-                    addQueryParameter("f_srdd", "$minRating")
                 }
                 // Pages
                 if (pageFrom > 0 || pageTo > 0) {

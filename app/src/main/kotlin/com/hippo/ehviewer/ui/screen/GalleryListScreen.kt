@@ -458,7 +458,6 @@ fun AnimatedVisibilityScope.GalleryListScreen(
         builder.category = category
         builder.language = languageFilter
         builder.advanceSearch = advancedSearchOption.advanceSearch
-        builder.minRating = advancedSearchOption.minRating
         builder.pageFrom = advancedSearchOption.fromPage
         builder.pageTo = advancedSearchOption.toPage
         when (oldMode) {

@@ -42,7 +42,6 @@ import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.ui.component.CrystalCard
 import com.ehviewer.core.ui.component.ElevatedCard
-import com.ehviewer.core.ui.component.GalleryListCardRating
 import com.ehviewer.core.ui.util.SharedElementBox
 import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.listThumbGenerator
@@ -123,12 +122,10 @@ fun GalleryInfoListItem(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Place the rating near the uploader text as there's more visual space
-                    GalleryListCardRating(rating = info.rating, modifier = Modifier.padding(top = 1.dp, bottom = 3.dp))
-                    Spacer(modifier = Modifier.weight(1f))
                     info.simpleLanguage?.let {
                         Text(text = it)
                     }
+                    Spacer(modifier = Modifier.weight(1f))
                     if (info.pages != 0 && showPages) {
                         val readProgress = if (showProgress) {
                             remember { EhDB.getReadProgressFlow(info.gid) }.collectAsState(0).value

@@ -137,3 +137,6 @@ class Schema23to24 : AutoMigrationSpec {
 @DeleteColumn(tableName = "DOWNLOADS", columnName = "STATE")
 @DeleteColumn(tableName = "DOWNLOADS", columnName = "LEGACY")
 class Schema24to25 : AutoMigrationSpec
+
+@DeleteColumn(tableName = "QUICK_SEARCH", columnName = "MIN_RATING")
+class Schema25to26 : AutoMigrationSpec
