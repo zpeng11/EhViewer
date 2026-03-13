@@ -16,18 +16,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NoAccounts
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,38 +36,15 @@ import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.detailThumbGenerator
 
 @Composable
-fun GalleryDetailHeaderInfoCard(
-    detail: GalleryDetail,
+private fun GalleryDetailHeaderInfoButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-) = detail.run {
-    Card(
+) {
+    AssistChip(
         onClick = onClick,
+        label = { Text(text = stringResource(id = R.string.gallery_info)) },
         modifier = modifier.width(IntrinsicSize.Max),
-    ) {
-        ProvideTextStyle(MaterialTheme.typography.labelMedium) {
-            Row(modifier = Modifier.padding(8.dp)) {
-                Text(text = language.orEmpty())
-                Spacer(modifier = Modifier.width(16.dp).weight(1f))
-                Text(text = size.orEmpty())
-            }
-            Row(modifier = Modifier.padding(horizontal = 8.dp)) {
-                Text(
-                    text = stringResource(id = R.string.favored_times, favoriteCount),
-                    modifier = Modifier.alignByBaseline(),
-                )
-                Spacer(modifier = Modifier.width(16.dp).weight(1f))
-                Text(
-                    text = pluralStringResource(id = R.plurals.page_count, pages, pages),
-                    modifier = Modifier.alignByBaseline(),
-                )
-            }
-            Text(
-                text = posted.orEmpty(),
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(8.dp),
-            )
-        }
-    }
+    )
 }
 
 @Composable
@@ -101,8 +74,7 @@ fun GalleryDetailHeaderCard(
             horizontalAlignment = Alignment.End,
         ) {
             (info as? GalleryDetail)?.let {
-                GalleryDetailHeaderInfoCard(
-                    detail = it,
+                GalleryDetailHeaderInfoButton(
                     onClick = onInfoCardClick,
                     modifier = Modifier.padding(top = 8.dp, end = dimensionResource(id = com.hippo.ehviewer.R.dimen.keyline_margin)),
                 )
