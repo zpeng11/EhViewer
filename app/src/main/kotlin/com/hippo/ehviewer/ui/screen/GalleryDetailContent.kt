@@ -3,14 +3,17 @@ package com.hippo.ehviewer.ui.screen
 import android.content.Context
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.MutatorMutex
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,10 +27,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -36,7 +41,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.LocalPinnableContainer
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +63,7 @@ import com.ehviewer.core.data.model.asGalleryDetail
 import com.ehviewer.core.data.model.findBaseInfo
 import com.ehviewer.core.database.model.Filter
 import com.ehviewer.core.database.model.FilterMode
+import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.GalleryComment
 import com.ehviewer.core.model.GalleryDetail
@@ -93,6 +101,7 @@ import com.hippo.ehviewer.library.previews.loadLocalDetailPreviewPage
 import com.hippo.ehviewer.ui.GalleryInfoBottomSheet
 import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.MainActivity
+import com.hippo.ehviewer.ui.addToFavorites
 import com.hippo.ehviewer.ui.destinations.GalleryCommentsScreenDestination
 import com.hippo.ehviewer.ui.getFavoriteIcon
 import com.hippo.ehviewer.ui.jumpToReaderByPage
@@ -104,6 +113,7 @@ import com.hippo.ehviewer.ui.main.GalleryTags
 import com.hippo.ehviewer.ui.modifyFavorites
 import com.hippo.ehviewer.ui.navToReader
 import com.hippo.ehviewer.ui.openBrowser
+import com.hippo.ehviewer.ui.selectExtraFavoriteFolder
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.ui.tools.awaitSelectAction
@@ -211,6 +221,8 @@ fun GalleryDetailContent(
     val removeSucceed = stringResource(R.string.remove_from_favorite_success)
     val addSucceed = stringResource(R.string.add_to_favorite_success)
     val addFailed = stringResource(R.string.add_to_favorite_failure)
+    val addExtraSucceed = stringResource(R.string.add_to_extra_favorite_success)
+    val addExtraFailed = stringResource(R.string.add_to_extra_favorite_failure)
     fun onFavoriteButtonClick() {
         launchIO {
             favoritesLock.mutate {
@@ -224,6 +236,22 @@ fun GalleryDetailContent(
             }
         }
     }
+    fun onFavoriteButtonLongClick() {
+        launchIO {
+            favoritesLock.mutate {
+                val folder = selectExtraFavoriteFolder(
+                    favSlot.takeIf { it in LocalFavoriteFolder.VALID_SLOT_RANGE },
+                ) ?: return@mutate
+                runSuspendCatching {
+                    addToFavorites(galleryInfo, folder.slot)
+                }.onSuccess { added ->
+                    snackbar(if (added) addExtraSucceed else addExtraFailed)
+                }.onFailure {
+                    snackbar(addExtraFailed)
+                }
+            }
+        }
+    }
 
     @Composable
     fun PrimaryActionButtons(modifier: Modifier = Modifier) {
@@ -231,9 +259,9 @@ fun GalleryDetailContent(
             modifier = modifier,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilledTonalButton(
+            LongClickableFilledTonalButton(
                 onClick = ::onFavoriteButtonClick,
-                shapes = ButtonDefaults.shapes(),
+                onLongClick = ::onFavoriteButtonLongClick,
                 modifier = Modifier.weight(1F),
             ) {
                 Icon(
@@ -392,6 +420,47 @@ fun GalleryDetailContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LongClickableFilledTonalButton(
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val colors = ButtonDefaults.filledTonalButtonColors()
+    Surface(
+        modifier = modifier,
+        shape = ButtonDefaults.filledTonalShape,
+        color = if (enabled) colors.containerColor else colors.disabledContainerColor,
+        contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
+    ) {
+        ProvideTextStyle(MaterialTheme.typography.labelLarge) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(
+                        minWidth = ButtonDefaults.MinWidth,
+                        minHeight = ButtonDefaults.MinHeight,
+                    )
+                    .combinedClickable(
+                        enabled = enabled,
+                        onClick = onClick,
+                        onLongClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick()
+                        },
+                    )
+                    .padding(ButtonDefaults.ContentPadding),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                content = content,
+            )
         }
     }
 }

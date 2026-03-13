@@ -71,6 +71,7 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlin.time.Clock
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -110,6 +111,21 @@ suspend fun addToFavorites(galleryInfo: GalleryInfo): Boolean = updateLocalFavor
 
 context(_: DialogState)
 suspend fun addToFavorites(galleryInfo: GalleryInfo, extraSlot: Int): Boolean = addToFavorites(listOf(galleryInfo), extraSlot) > 0
+
+context(_: DialogState, _: MainActivity)
+suspend fun selectExtraFavoriteFolder(excludedSlot: Int? = null): LocalFavoriteFolder? {
+    val localFavoriteFolders = EhDB.localFavoriteFolders.first().filterNot { it.slot == excludedSlot }
+    if (localFavoriteFolders.isEmpty()) {
+        tip(R.string.no_extra_favorite_folders)
+        return null
+    }
+    val selected = awaitSelectItem(
+        items = localFavoriteFolders.map { "[${it.slot}] ${it.name}" },
+        title = R.string.select_extra_favorite_folder,
+        selected = 0,
+    )
+    return localFavoriteFolders.getOrNull(selected)
+}
 
 suspend fun addToFavorites(galleryInfoList: Collection<GalleryInfo>, extraSlot: Int): Int {
     if (galleryInfoList.isEmpty()) return 0

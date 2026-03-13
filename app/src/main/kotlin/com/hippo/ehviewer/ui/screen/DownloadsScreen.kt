@@ -80,7 +80,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.ehviewer.core.database.model.LocalFavoriteFolder
 import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.TagNamespace
@@ -118,13 +117,13 @@ import com.hippo.ehviewer.ui.main.DownloadCard
 import com.hippo.ehviewer.ui.main.GalleryInfoGridItem
 import com.hippo.ehviewer.ui.navToReader
 import com.hippo.ehviewer.ui.removeFromFavorites
+import com.hippo.ehviewer.ui.selectExtraFavoriteFolder
 import com.hippo.ehviewer.ui.showMoveDownloadLabelList
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.ui.tools.awaitInputText
 import com.hippo.ehviewer.ui.tools.awaitSelectAction
 import com.hippo.ehviewer.ui.tools.awaitSelectItemWithCheckBox
-import com.hippo.ehviewer.ui.tools.awaitSingleChoice
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -203,7 +202,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
     val labelExists = stringResource(R.string.label_text_exist)
     val downloadsCountGroupByArtist by rememberInVM { EhDB.downloadsCountByArtist }.collectAsState(emptyMap())
     val downloadsCountGroupByLabel by rememberInVM { EhDB.downloadsCountByLabel }.collectAsState(emptyMap())
-    val localFavoriteFolders by rememberInVM { EhDB.localFavoriteFolders }.collectAsState(emptyList())
     val downloadsCount = when (filterMode) {
         DownloadsFilterMode.CUSTOM -> downloadsCountGroupByLabel
         DownloadsFilterMode.ARTIST -> downloadsCountGroupByArtist
@@ -271,19 +269,6 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
             changed > 0 -> tip(if (favorited) R.string.add_to_favorite_success else R.string.remove_from_favorite_success)
         }
         checkedInfoMap.clear()
-    }
-
-    suspend fun selectExtraFavoriteFolder(): LocalFavoriteFolder? {
-        if (localFavoriteFolders.isEmpty()) {
-            tip(R.string.no_extra_favorite_folders)
-            return null
-        }
-        val selected = awaitSingleChoice(
-            items = localFavoriteFolders.map { "[${it.slot}] ${it.name}" },
-            selected = 0,
-            title = R.string.select_extra_favorite_folder,
-        )
-        return localFavoriteFolders.getOrNull(selected)
     }
 
     suspend fun addSelectionToExtraFavorites() {
