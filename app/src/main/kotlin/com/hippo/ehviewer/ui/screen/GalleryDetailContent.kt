@@ -166,13 +166,6 @@ fun GalleryDetailContent(
             launch { snackbar(localContentUnavailable) }
         }
     }
-    fun onCategoryChipClick() {
-        val category = galleryInfo.category
-        if (category == EhUtils.NONE || category == EhUtils.PRIVATE || category == EhUtils.UNKNOWN) {
-            return
-        }
-        navigate(ListUrlBuilder(category = category).asDst())
-    }
     fun onUploaderChipClick(galleryInfo: GalleryInfo) {
         val uploader = galleryInfo.uploader
         val disowned = uploader == "(Disowned)"
@@ -308,7 +301,6 @@ fun GalleryDetailContent(
                     onInfoCardClick = ::onGalleryInfoCardClick,
                     onUploaderChipClick = ::onUploaderChipClick.partially1(galleryInfo),
                     onBlockUploaderIconClick = ::showFilterUploaderDialog.partially1(galleryInfo),
-                    onCategoryChipClick = ::onCategoryChipClick,
                     localOnlyThumb = canReadLocally,
                     modifier = Modifier.fillMaxWidth().padding(vertical = keylineMargin),
                 )
@@ -371,7 +363,6 @@ fun GalleryDetailContent(
                         onInfoCardClick = ::onGalleryInfoCardClick,
                         onUploaderChipClick = ::onUploaderChipClick.partially1(galleryInfo),
                         onBlockUploaderIconClick = ::showFilterUploaderDialog.partially1(galleryInfo),
-                        onCategoryChipClick = ::onCategoryChipClick,
                         localOnlyThumb = canReadLocally,
                         modifier = Modifier.width(dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_detail_card_landscape_width)).padding(vertical = keylineMargin),
                     )

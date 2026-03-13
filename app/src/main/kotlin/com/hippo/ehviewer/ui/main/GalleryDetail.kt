@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.NoAccounts
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -39,7 +38,6 @@ import com.ehviewer.core.ui.icons.EhIcons
 import com.ehviewer.core.ui.icons.big.SadAndroid
 import com.ehviewer.core.ui.util.TransitionsVisibilityScope
 import com.ehviewer.core.ui.util.detailThumbGenerator
-import com.hippo.ehviewer.client.EhUtils
 
 @Composable
 fun GalleryDetailHeaderInfoCard(
@@ -83,7 +81,6 @@ fun GalleryDetailHeaderCard(
     onInfoCardClick: () -> Unit,
     onUploaderChipClick: () -> Unit,
     onBlockUploaderIconClick: () -> Unit,
-    onCategoryChipClick: () -> Unit,
     localOnlyThumb: Boolean = false,
     modifier: Modifier = Modifier,
 ) = ElevatedCard(modifier = modifier) {
@@ -111,18 +108,6 @@ fun GalleryDetailHeaderCard(
                 )
             }
             Spacer(modifier = Modifier.weight(1F))
-            val categoryText = EhUtils.getCategory(info.category).uppercase()
-            AssistChip(
-                onClick = onCategoryChipClick,
-                label = { Text(text = categoryText, overflow = TextOverflow.Visible, softWrap = false, maxLines = 1) },
-                modifier = Modifier.padding(horizontal = dimensionResource(id = com.hippo.ehviewer.R.dimen.keyline_margin)),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Default.Label,
-                        contentDescription = null,
-                    )
-                },
-            )
             val uploaderText = info.uploader.orEmpty()
             AssistChip(
                 onClick = onUploaderChipClick,
