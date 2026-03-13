@@ -15,5 +15,6 @@ data class DownloadsFilterState(
 fun DownloadsFilterState.take(info: DownloadInfo) = mode.take(info, label) && with(info) {
         title.containsIgnoreCase(keyword) ||
             titleJpn.containsIgnoreCase(keyword) ||
+            uploader.containsIgnoreCase(keyword) ||
             simpleTags?.any { it.containsIgnoreCase(keyword) } == true
     }

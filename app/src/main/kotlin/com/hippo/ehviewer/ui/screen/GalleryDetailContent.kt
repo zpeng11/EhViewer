@@ -102,6 +102,7 @@ import com.hippo.ehviewer.ui.GalleryInfoBottomSheet
 import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.MainActivity
 import com.hippo.ehviewer.ui.addToFavorites
+import com.hippo.ehviewer.ui.destinations.DownloadsScreenDestination
 import com.hippo.ehviewer.ui.destinations.GalleryCommentsScreenDestination
 import com.hippo.ehviewer.ui.getFavoriteIcon
 import com.hippo.ehviewer.ui.jumpToReaderByPage
@@ -178,7 +179,8 @@ fun GalleryDetailContent(
         if (uploader.isNullOrEmpty() || disowned) {
             return
         }
-        navigate(ListUrlBuilder(mode = ListUrlBuilder.MODE_UPLOADER, keyword = uploader).asDst())
+        DownloadsSearchRouter.search(uploader)
+        navigate(DownloadsScreenDestination)
     }
 
     fun onGalleryInfoCardClick() {
@@ -550,7 +552,10 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
         val upTag = stringResource(R.string.tag_vote_up)
         val downTag = stringResource(R.string.tag_vote_down)
         val withDraw = stringResource(R.string.tag_vote_withdraw)
-        fun search(tag: String) = navigate(ListUrlBuilder(mode = ListUrlBuilder.MODE_TAG, keyword = tag).asDst())
+        fun search(tag: String) {
+            DownloadsSearchRouter.search(tag)
+            navigate(DownloadsScreenDestination)
+        }
         GalleryTags(
             tagGroups = tags,
             onTagClick = ::search,

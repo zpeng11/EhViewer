@@ -129,6 +129,7 @@ import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import moe.tarsin.navigate
 import moe.tarsin.tip
 import sh.calvin.reorderable.ReorderableItem
@@ -523,6 +524,16 @@ fun AnimatedVisibilityScope.DownloadsScreen(navigator: DestinationsNavigator) = 
     }
 
     val searchFieldState = rememberTextFieldState()
+    LaunchedEffect(Unit) {
+        DownloadsSearchRouter.requestFlow.collectLatest { request ->
+            if (request == null) return@collectLatest
+            searchFieldState.setTextAndPlaceCursorAtEnd(request.keyword)
+            checkedInfoMap.clear()
+            searchBarExpanded = false
+            filterState = filterState.copy(keyword = request.keyword)
+            DownloadsSearchRouter.consume(request)
+        }
+    }
     class DownloadLabelSuggestion(private val label: String) : Suggestion() {
         override val keyword = LABEL_PREFIX + label
         override fun onClick() {
