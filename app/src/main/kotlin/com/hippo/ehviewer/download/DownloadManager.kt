@@ -40,10 +40,12 @@ import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.mapNotNull
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
+import com.hippo.ehviewer.client.data.needsComicInfoTagNormalization
 import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.spider.COMIC_INFO_FILE
 import com.hippo.ehviewer.spider.SPIDER_INFO_FILENAME
 import com.hippo.ehviewer.spider.readComicInfo
+import com.hippo.ehviewer.spider.readComicInfoFromArchive
 import com.hippo.ehviewer.spider.readCompatFromPath
 import com.hippo.ehviewer.spider.toSimpleTags
 import com.hippo.ehviewer.util.AppConfig
@@ -278,7 +280,7 @@ object DownloadManager {
     suspend fun readMetadataFromLocal() {
         val list = sortMutex.withLock {
             allInfoList.mapNotNull {
-                val updateGallery = it.pages == 0 || it.simpleTags == null
+                val updateGallery = it.pages == 0 || it.simpleTags == null || needsComicInfoTagNormalization(it.simpleTags)
                 val updateArtist = it.artistInfoList.isEmpty()
                 if (updateGallery || updateArtist) {
                     Triple(it, updateGallery, updateArtist)
@@ -289,6 +291,7 @@ object DownloadManager {
         }.parMapNotNull(concurrency = 5) { (info, updateGallery, updateArtist) ->
             info.downloadDir?.run {
                 val comicInfo = find(COMIC_INFO_FILE)?.let { readComicInfo(it) }
+                    ?: info.archiveFile?.let { readComicInfoFromArchive(it) }
                 if (comicInfo != null) {
                     val galleryInfo = if (updateGallery) {
                         info.pages = comicInfo.pageCount

@@ -1,6 +1,8 @@
 package com.hippo.ehviewer.spider
 
+import android.os.ParcelFileDescriptor
 import com.ehviewer.core.database.util.SimpleTagsConverter
+import com.ehviewer.core.files.openFileDescriptor
 import com.ehviewer.core.files.read
 import com.ehviewer.core.files.write
 import com.ehviewer.core.model.GalleryDetail
@@ -22,6 +24,8 @@ import com.ehviewer.core.model.TagNamespace.Parody
 import com.ehviewer.core.model.VoteStatus
 import com.hippo.ehviewer.client.data.languageTagForCode
 import com.hippo.ehviewer.client.EhUrl
+import java.io.BufferedInputStream
+import java.util.zip.ZipInputStream
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -29,6 +33,7 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.io.Buffer
 import net.devrieze.xmlutil.serialization.kxio.decodeFromSource
 import net.devrieze.xmlutil.serialization.kxio.encodeToSink
 import nl.adaptivity.xmlutil.XmlDeclMode
@@ -149,6 +154,26 @@ fun writeComicInfo(info: ComicInfo, file: Path) = file.write { xml.encodeToSink(
 fun readComicInfo(file: Path): ComicInfo? = runCatching {
     file.read {
         xml.decodeFromSource<ComicInfo>(this)
+    }
+}.getOrNull()
+
+fun readComicInfoFromArchive(file: Path): ComicInfo? = runCatching {
+    ParcelFileDescriptor.AutoCloseInputStream(file.openFileDescriptor("r")).use { input ->
+        ZipInputStream(BufferedInputStream(input)).use { zip ->
+            var result: ComicInfo? = null
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                val name = entry.name.substringAfterLast('/')
+                if (!name.equals(COMIC_INFO_FILE, ignoreCase = true)) continue
+                result = Buffer().apply {
+                    write(zip.readBytes())
+                }.use {
+                    xml.decodeFromSource<ComicInfo>(it)
+                }
+                break
+            }
+            result
+        }
     }
 }.getOrNull()
 

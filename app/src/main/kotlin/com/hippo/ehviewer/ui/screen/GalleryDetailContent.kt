@@ -319,7 +319,12 @@ fun GalleryDetailContent(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     )
                     if (galleryDetail != null) {
-                        BelowHeader(galleryDetail, voteTag)
+                        BelowHeader(
+                            galleryDetail = galleryDetail,
+                            tagGroups = localTagInfo?.tagGroups ?: galleryDetail.tagGroups,
+                            canVoteTags = localTagInfo == null,
+                            voteTag = voteTag,
+                        )
                     } else if (localOnlyDetail) {
                         LocalBelowHeader(localTagInfo.tagGroups)
                     } else if (showingLocalPreviewGrid) {
@@ -390,7 +395,12 @@ fun GalleryDetailContent(
                 LocalPinnableContainer.current!!.run { remember { pin() } }
                 Column {
                     if (galleryDetail != null) {
-                        BelowHeader(galleryDetail, voteTag)
+                        BelowHeader(
+                            galleryDetail = galleryDetail,
+                            tagGroups = localTagInfo?.tagGroups ?: galleryDetail.tagGroups,
+                            canVoteTags = localTagInfo == null,
+                            voteTag = voteTag,
+                        )
                     } else if (localOnlyDetail) {
                         LocalBelowHeader(localTagInfo.tagGroups)
                     } else if (showingLocalPreviewGrid) {
@@ -546,7 +556,12 @@ private fun LocalBelowHeader(tagGroups: List<GalleryTagGroup>) {
 
 @Composable
 context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
-fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
+fun BelowHeader(
+    galleryDetail: GalleryDetail,
+    tagGroups: List<GalleryTagGroup>,
+    canVoteTags: Boolean,
+    voteTag: VoteTag,
+) {
     @Composable
     fun GalleryDetailComment(commentsList: List<GalleryComment>) {
         val maxShowCount = 2
@@ -612,12 +627,12 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
         }
         Spacer(modifier = Modifier.size(keylineMargin))
     }
-    val onVoteTag: (suspend (String, Int) -> Unit)? = if (galleryDetail.apiUid >= 0) {
+    val onVoteTag: (suspend (String, Int) -> Unit)? = if (canVoteTags && galleryDetail.apiUid >= 0) {
         { tag, vote -> galleryDetail.voteTag(tag, vote) }
     } else {
         null
     }
-    GalleryTagSection(tagGroups = galleryDetail.tagGroups, onVoteTag = onVoteTag)
+    GalleryTagSection(tagGroups = tagGroups, onVoteTag = onVoteTag)
     Spacer(modifier = Modifier.size(keylineMargin))
     if (Settings.showComments.value) {
         GalleryDetailComment(galleryDetail.comments.comments)
