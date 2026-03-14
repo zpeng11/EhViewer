@@ -112,6 +112,8 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
         val casted = args as? GalleryInfoArgs
         mutableStateOf<GalleryInfo?>(casted?.galleryInfo)
     }
+    var localTagInfo by rememberInVM(gid) { mutableStateOf<LocalDetailTagInfo?>(null) }
+    var localTagResolved by rememberInVM(gid) { mutableStateOf(false) }
 
     var getDetailError by rememberSaveable { mutableStateOf("") }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -126,7 +128,16 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
         }
     }
 
-    if (galleryInfo !is GalleryDetail && getDetailError.isBlank()) {
+    LaunchedEffect(gid) {
+        val info = withIOContext { resolveLocalDetailTagInfo(gid, galleryInfo) }
+        localTagInfo = info
+        localTagResolved = true
+        if (galleryInfo == null && info != null) {
+            galleryInfo = info.fallbackInfo
+        }
+    }
+
+    if (localTagResolved && localTagInfo == null && galleryInfo !is GalleryDetail && getDetailError.isBlank()) {
         LaunchedEffect(Unit) {
             val galleryDetail = detailCache[gid]
                 ?: runSuspendCatching {
@@ -262,6 +273,7 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                 galleryInfo = gi,
                 contentPadding = it,
                 getDetailError = getDetailError,
+                localTagInfo = localTagInfo,
                 onRetry = { getDetailError = "" },
                 voteTag = voteTag,
                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),

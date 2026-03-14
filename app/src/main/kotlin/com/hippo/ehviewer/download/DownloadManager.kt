@@ -293,6 +293,7 @@ object DownloadManager {
                     val galleryInfo = if (updateGallery) {
                         info.pages = comicInfo.pageCount
                         info.simpleTags = comicInfo.toSimpleTags()
+                        info.generateSLang()
                         info.galleryInfo
                     } else {
                         null

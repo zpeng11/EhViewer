@@ -70,6 +70,7 @@ import com.ehviewer.core.model.GalleryDetail
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.model.GalleryPreview
+import com.ehviewer.core.model.GalleryTagGroup
 import com.ehviewer.core.model.V2GalleryPreview
 import com.ehviewer.core.model.VoteStatus
 import com.ehviewer.core.ui.component.CrystalCard
@@ -139,6 +140,7 @@ fun GalleryDetailContent(
     galleryInfo: GalleryInfo,
     contentPadding: PaddingValues,
     getDetailError: String,
+    localTagInfo: LocalDetailTagInfo?,
     onRetry: () -> Unit,
     voteTag: VoteTag,
     modifier: Modifier,
@@ -282,6 +284,7 @@ fun GalleryDetailContent(
         galleryDetail != null -> galleryDetail.collectPreviewItems()
         else -> null
     }
+    val localOnlyDetail = galleryDetail == null && localTagInfo != null
     val showingLocalPreviewGrid = canReadLocally && previews != null
     when {
         !windowSizeClass.isExpanded -> FastScrollLazyVerticalGrid(
@@ -317,6 +320,8 @@ fun GalleryDetailContent(
                     )
                     if (galleryDetail != null) {
                         BelowHeader(galleryDetail, voteTag)
+                    } else if (localOnlyDetail) {
+                        LocalBelowHeader(localTagInfo.tagGroups)
                     } else if (showingLocalPreviewGrid) {
                         Spacer(modifier = Modifier.height(1.dp))
                     } else if (getDetailError.isNotBlank()) {
@@ -386,6 +391,8 @@ fun GalleryDetailContent(
                 Column {
                     if (galleryDetail != null) {
                         BelowHeader(galleryDetail, voteTag)
+                    } else if (localOnlyDetail) {
+                        LocalBelowHeader(localTagInfo.tagGroups)
                     } else if (showingLocalPreviewGrid) {
                         Spacer(modifier = Modifier.height(1.dp))
                     } else if (getDetailError.isNotBlank()) {
@@ -460,6 +467,85 @@ private fun LongClickableFilledTonalButton(
 
 @Composable
 context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
+private fun GalleryTagSection(
+    tagGroups: List<GalleryTagGroup>,
+    onVoteTag: (suspend (String, Int) -> Unit)?,
+) {
+    if (tagGroups.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = stringResource(id = R.string.no_tags))
+        }
+        return
+    }
+
+    val copy = stringResource(android.R.string.copy)
+    val copyTrans = stringResource(R.string.copy_trans)
+    val showDefine = stringResource(R.string.show_definition)
+    val addFilter = stringResource(R.string.add_filter)
+    val filterAdded = stringResource(R.string.filter_added)
+    val upTag = stringResource(R.string.tag_vote_up)
+    val downTag = stringResource(R.string.tag_vote_down)
+    val withDraw = stringResource(R.string.tag_vote_withdraw)
+    fun search(tag: String) {
+        DownloadsSearchRouter.search(tag)
+        navigate(DownloadsScreenDestination)
+    }
+    GalleryTags(
+        tagGroups = tagGroups,
+        onTagClick = ::search,
+        onTagLongClick = { tag, translation, vote ->
+            val rawValue = tag.substringAfter(':')
+            launchIO {
+                awaitSelectAction {
+                    onSelect(ctx.getString(R.string.search_bar_hint, tag)) {
+                        withUIContext { search(tag) }
+                    }
+                    onSelect(copy) {
+                        addTextToClipboard(tag)
+                    }
+                    if (rawValue != translation) {
+                        onSelect(copyTrans) {
+                            addTextToClipboard(translation)
+                        }
+                    }
+                    onSelect(showDefine) {
+                        openBrowser(EhUrl.getTagDefinitionUrl(rawValue))
+                    }
+                    onSelect(addFilter) {
+                        awaitConfirmationOrCancel { Text(text = stringResource(R.string.filter_the_tag, tag)) }
+                        Filter(FilterMode.TAG, tag).remember()
+                        snackbar(filterAdded)
+                    }
+                    if (onVoteTag != null) {
+                        when (vote) {
+                            VoteStatus.None -> {
+                                onSelect(upTag) { onVoteTag(tag, 1) }
+                                onSelect(downTag) { onVoteTag(tag, -1) }
+                            }
+                            VoteStatus.Up -> onSelect(withDraw) { onVoteTag(tag, -1) }
+                            VoteStatus.Down -> onSelect(withDraw) { onVoteTag(tag, 1) }
+                        }
+                    }
+                }()
+            }
+        },
+    )
+}
+
+@Composable
+context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
+private fun LocalBelowHeader(tagGroups: List<GalleryTagGroup>) {
+    val keylineMargin = dimensionResource(com.hippo.ehviewer.R.dimen.keyline_margin)
+    Spacer(modifier = Modifier.size(keylineMargin))
+    GalleryTagSection(tagGroups = tagGroups, onVoteTag = null)
+    Spacer(modifier = Modifier.size(keylineMargin))
+}
+
+@Composable
+context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
 fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
     @Composable
     fun GalleryDetailComment(commentsList: List<GalleryComment>) {
@@ -526,68 +612,12 @@ fun BelowHeader(galleryDetail: GalleryDetail, voteTag: VoteTag) {
         }
         Spacer(modifier = Modifier.size(keylineMargin))
     }
-    val tags = galleryDetail.tagGroups
-    if (tags.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(text = stringResource(id = R.string.no_tags))
-        }
+    val onVoteTag: (suspend (String, Int) -> Unit)? = if (galleryDetail.apiUid >= 0) {
+        { tag, vote -> galleryDetail.voteTag(tag, vote) }
     } else {
-        val copy = stringResource(android.R.string.copy)
-        val copyTrans = stringResource(R.string.copy_trans)
-        val showDefine = stringResource(R.string.show_definition)
-        val addFilter = stringResource(R.string.add_filter)
-        val filterAdded = stringResource(R.string.filter_added)
-        val upTag = stringResource(R.string.tag_vote_up)
-        val downTag = stringResource(R.string.tag_vote_down)
-        val withDraw = stringResource(R.string.tag_vote_withdraw)
-        fun search(tag: String) {
-            DownloadsSearchRouter.search(tag)
-            navigate(DownloadsScreenDestination)
-        }
-        GalleryTags(
-            tagGroups = tags,
-            onTagClick = ::search,
-            onTagLongClick = { tag, translation, vote ->
-                val rawValue = tag.substringAfter(':')
-                launchIO {
-                    awaitSelectAction {
-                        onSelect(ctx.getString(R.string.search_bar_hint, tag)) {
-                            withUIContext { search(tag) }
-                        }
-                        onSelect(copy) {
-                            addTextToClipboard(tag)
-                        }
-                        if (rawValue != translation) {
-                            onSelect(copyTrans) {
-                                addTextToClipboard(translation)
-                            }
-                        }
-                        onSelect(showDefine) {
-                            openBrowser(EhUrl.getTagDefinitionUrl(rawValue))
-                        }
-                        onSelect(addFilter) {
-                            awaitConfirmationOrCancel { Text(text = stringResource(R.string.filter_the_tag, tag)) }
-                            Filter(FilterMode.TAG, tag).remember()
-                            snackbar(filterAdded)
-                        }
-                        if (galleryDetail.apiUid >= 0) {
-                            when (vote) {
-                                VoteStatus.None -> {
-                                    onSelect(upTag) { galleryDetail.voteTag(tag, 1) }
-                                    onSelect(downTag) { galleryDetail.voteTag(tag, -1) }
-                                }
-                                VoteStatus.Up -> onSelect(withDraw) { galleryDetail.voteTag(tag, -1) }
-                                VoteStatus.Down -> onSelect(withDraw) { galleryDetail.voteTag(tag, 1) }
-                            }
-                        }
-                    }()
-                }
-            },
-        )
+        null
     }
+    GalleryTagSection(tagGroups = galleryDetail.tagGroups, onVoteTag = onVoteTag)
     Spacer(modifier = Modifier.size(keylineMargin))
     if (Settings.showComments.value) {
         GalleryDetailComment(galleryDetail.comments.comments)

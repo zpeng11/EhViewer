@@ -15,11 +15,8 @@
  */
 package com.hippo.ehviewer.client.data
 
-import androidx.compose.ui.util.fastFlatMap
 import com.ehviewer.core.model.GalleryDetail
 import com.ehviewer.core.model.GalleryInfo
-import com.ehviewer.core.model.GalleryTagGroup
-import com.ehviewer.core.model.PowerStatus
 import com.hippo.ehviewer.EhDB
 import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhFilter
@@ -44,9 +41,7 @@ private val LANGUAGES = arrayOf(
 suspend fun GalleryDetail.fillInfo() {
     val index = LANGUAGES.indexOf(language)
     if (index != -1) simpleLanguage = GalleryInfo.S_LANGS[index]
-    simpleTags = tagGroups.fastFlatMap(GalleryTagGroup::tags).map { (text, power, _) ->
-        if (power == PowerStatus.Weak) "_$text" else text
-    }
+    simpleTags = tagGroups.toSimpleTagStrings()
     favoriteSlot = EhDB.getLocalFavoriteSlot(gid)
 }
 

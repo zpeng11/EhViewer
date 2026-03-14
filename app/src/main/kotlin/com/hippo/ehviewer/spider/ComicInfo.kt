@@ -6,6 +6,7 @@ import com.ehviewer.core.files.write
 import com.ehviewer.core.model.GalleryDetail
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryTag
+import com.ehviewer.core.model.GalleryTagGroup
 import com.ehviewer.core.model.PowerStatus
 import com.ehviewer.core.model.TagNamespace
 import com.ehviewer.core.model.TagNamespace.Artist
@@ -18,6 +19,8 @@ import com.ehviewer.core.model.TagNamespace.Male
 import com.ehviewer.core.model.TagNamespace.Mixed
 import com.ehviewer.core.model.TagNamespace.Other
 import com.ehviewer.core.model.TagNamespace.Parody
+import com.ehviewer.core.model.VoteStatus
+import com.hippo.ehviewer.client.data.languageTagForCode
 import com.hippo.ehviewer.client.EhUrl
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -98,13 +101,48 @@ fun GalleryInfo.getComicInfo(): ComicInfo {
     )
 }
 
-fun ComicInfo.toSimpleTags() = listOfNotNull(
-    writer,
-    penciller,
-    genre,
-    characters,
-    teams,
-).flatten().ifEmpty { null }
+fun ComicInfo.toSimpleTags() = toTagGroups().flatMap { group ->
+        group.tags.map { tag -> "${group.namespace.value}:${tag.text}" }
+    }.ifEmpty { null }
+
+fun ComicInfo.toTagGroups(): List<GalleryTagGroup> {
+    val groups = linkedMapOf<TagNamespace, LinkedHashSet<String>>()
+
+    fun add(namespace: TagNamespace, values: Iterable<String>?) {
+        if (values == null) return
+        values.forEach { value ->
+            val normalized = value.trim()
+            if (normalized.isEmpty()) return@forEach
+            groups.getOrPut(namespace) { linkedSetOf() }.add(normalized)
+        }
+    }
+
+    add(Group, writer)
+    add(Artist, penciller)
+    add(Character, characters)
+    add(Parody, teams)
+    genre?.forEach { raw ->
+        val parts = raw.split(':', limit = 2)
+        if (parts.size != 2) return@forEach
+        val namespace = when (parts[0]) {
+            Female.prefix -> Female
+            Male.prefix -> Male
+            Mixed.prefix -> Mixed
+            else -> null
+        } ?: return@forEach
+        add(namespace, listOf(parts[1]))
+    }
+    languageTagForCode(languageISO)?.let { add(TagNamespace.Language, listOf(it)) }
+
+    return groups.map { (namespace, tags) ->
+        GalleryTagGroup(
+            namespace = namespace,
+            tags = tags.map { tag ->
+                GalleryTag(text = tag, power = PowerStatus.Active, vote = VoteStatus.None)
+            },
+        )
+    }
+}
 
 fun writeComicInfo(info: ComicInfo, file: Path) = file.write { xml.encodeToSink(this, info) }
 
