@@ -496,7 +496,7 @@ private fun GalleryTagSection(
     GalleryTags(
         tagGroups = tagGroups,
         onTagClick = ::search,
-        onTagLongClick = { tag, translation, _ ->
+        onTagLongClick = { tag, translation ->
             val rawValue = tag.substringAfter(':')
             launchIO {
                 awaitSelectAction {

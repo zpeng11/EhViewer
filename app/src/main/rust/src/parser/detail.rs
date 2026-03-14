@@ -5,7 +5,7 @@ use anyhow::{Context, Result, bail};
 use chrono::naive::NaiveDateTime;
 use quick_xml::escape::unescape;
 use serde::Serialize;
-use tl::{Bytes, Node, NodeHandle, Parser, VDom};
+use tl::{Node, NodeHandle, Parser, VDom};
 
 #[derive(Serialize, Debug, Default)]
 #[allow(non_snake_case)]
@@ -242,73 +242,6 @@ pub fn parse_event_pane(dom: &VDom, parser: &Parser) -> Option<String> {
     dom.get_element_by_id("eventpane")?
         .get(parser)
         .map(|n| n.inner_html(parser).to_string())
-}
-
-pub fn parse_tag_groups(
-    dom: &VDom,
-    parser: &Parser,
-    is_root: bool,
-) -> Result<Vec<GalleryTagGroup>> {
-    let nodes: Vec<_> = if is_root {
-        dom.query_selector("tr").unwrap().collect()
-    } else {
-        dom.get_element_by_id("taglist")
-            .and_then(|n| n.get(parser)?.as_tag())
-            .context("Failed to find taglist")?
-            .query_selector(parser, "tr")
-            .unwrap()
-            .collect()
-    };
-    nodes
-        .iter()
-        .filter_map(|n| n.get(parser)?.children())
-        .map(|children| {
-            let mut iter = children
-                .top()
-                .iter()
-                .filter_map(|n| n.get(parser)?.as_tag());
-
-            let namespace = iter
-                .next()?
-                .inner_text(parser)
-                .strip_suffix(':')?
-                .to_string();
-            let tags = iter
-                .next()?
-                .children()
-                .top()
-                .iter()
-                .filter_map(|n| n.get(parser)?.as_tag())
-                .map(|tag| {
-                    let text = unescape(&tag.inner_text(parser))
-                        .ok()?
-                        .split('|')
-                        .next()?
-                        .trim()
-                        .to_string();
-                    let power = match tag.attributes().class()?.try_as_utf8_str()? {
-                        "gtw" => PowerStatus::Weak,
-                        "gtl" => PowerStatus::Active,
-                        "gt" => PowerStatus::Solid,
-                        _ => return None,
-                    };
-                    let vote = match get_first_child(tag, parser)?
-                        .attributes()
-                        .class()
-                        .and_then(Bytes::try_as_utf8_str)
-                    {
-                        Some("tup") => VoteStatus::Up,
-                        Some("tdn") => VoteStatus::Down,
-                        _ => VoteStatus::None,
-                    };
-                    Some(GalleryTag { text, power, vote })
-                })
-                .collect::<Option<Vec<_>>>()?;
-
-            Some(GalleryTagGroup { namespace, tags })
-        })
-        .collect::<Option<Vec<_>>>()
-        .context("Failed to parse tag groups")
 }
 
 fn parse_comment_time(str: &str, prefix: &str) -> Option<i64> {
