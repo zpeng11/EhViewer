@@ -2,7 +2,6 @@
 
 use crate::EhError;
 use crate::img::webp::{create_decoder, get_image_info, pack_image_info};
-use crate::parser::api::parse_vote_tag;
 use crate::parser::archive::{parse_archive_url, parse_archives, parse_archives_with_funds};
 use crate::parser::config::parse_fav_cat;
 use crate::parser::detail::{parse_comments, parse_event_pane, parse_gallery_detail};
@@ -73,11 +72,6 @@ pub fn nativeParsePreviews(mut env: JNIEnv, _: JClass, buffer: JByteBuffer, limi
             parse_pages(dom, dom.parser())?,
         ))
     })
-}
-
-#[jni_fn("com.hippo.ehviewer.client.parser.VoteTagParser")]
-pub fn nativeParse(mut env: JNIEnv, _: JClass, buffer: JByteBuffer, limit: jint) -> jint {
-    parse_raw_marshal_inplace(&mut env, buffer, limit, parse_vote_tag)
 }
 
 #[jni_fn("com.hippo.ehviewer.client.parser.EventPaneParser")]

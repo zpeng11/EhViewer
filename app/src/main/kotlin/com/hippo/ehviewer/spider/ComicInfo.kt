@@ -61,8 +61,21 @@ fun GalleryInfo.getComicInfo(): ComicInfo {
     val parodies = mutableListOf<String>()
     val otherTags = mutableListOf<String>()
     with(TagNamespace) {
-        when (this@getComicInfo) {
-            is GalleryDetail -> tagGroups.forEach { group ->
+        when {
+            !simpleTags.isNullOrEmpty() -> simpleTags?.forEach { tagString ->
+                val (namespace, tag) = tagString.split(':', limit = 2)
+                    .takeIf { it.size == 2 } ?: return@forEach // Ignore temp tags that don't have namespace
+                when (val ns = from(namespace)) {
+                    Artist, Cosplayer -> artists.add(tag)
+                    Group -> groups.add(tag)
+                    Character -> characters.add(tag)
+                    Parody -> if (tag != TAG_ORIGINAL) parodies.add(tag)
+                    Location, Other -> otherTags.add(tag)
+                    Female, Male, Mixed -> ns.prefix.let { otherTags.add("$it:$tag") }
+                    else -> Unit
+                }
+            }
+            this@getComicInfo is GalleryDetail -> tagGroups.forEach { group ->
                 val list = group.tags.filterNot { (text, power, _) -> text == TAG_ORIGINAL || power == PowerStatus.Weak }.map(GalleryTag::text)
                 when (val ns = group.namespace) {
                     Artist, Cosplayer -> artists.addAll(list)
@@ -73,19 +86,6 @@ fun GalleryInfo.getComicInfo(): ComicInfo {
                     Female, Male, Mixed -> ns.prefix.let { prefix ->
                         list.forEach { tag -> otherTags.add("$prefix:$tag") }
                     }
-                    else -> Unit
-                }
-            }
-            else -> simpleTags?.forEach { tagString ->
-                val (namespace, tag) = tagString.split(':', limit = 2)
-                    .takeIf { it.size == 2 } ?: return@forEach // Ignore temp tags that don't have namespace
-                when (val ns = from(namespace)) {
-                    Artist, Cosplayer -> artists.add(tag)
-                    Group -> groups.add(tag)
-                    Character -> characters.add(tag)
-                    Parody -> if (tag != TAG_ORIGINAL) parodies.add(tag)
-                    Location, Other -> otherTags.add(tag)
-                    Female, Male, Mixed -> ns.prefix.let { otherTags.add("$it:$tag") }
                     else -> Unit
                 }
             }

@@ -72,7 +72,6 @@ import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.model.GalleryPreview
 import com.ehviewer.core.model.GalleryTagGroup
 import com.ehviewer.core.model.V2GalleryPreview
-import com.ehviewer.core.model.VoteStatus
 import com.ehviewer.core.ui.component.CrystalCard
 import com.ehviewer.core.ui.component.FastScrollLazyVerticalGrid
 import com.ehviewer.core.ui.util.LocalWindowSizeClass
@@ -142,7 +141,6 @@ fun GalleryDetailContent(
     getDetailError: String,
     localTagInfo: LocalDetailTagInfo?,
     onRetry: () -> Unit,
-    voteTag: VoteTag,
     modifier: Modifier,
 ) {
     val keylineMargin = dimensionResource(com.hippo.ehviewer.R.dimen.keyline_margin)
@@ -321,9 +319,7 @@ fun GalleryDetailContent(
                     if (galleryDetail != null) {
                         BelowHeader(
                             galleryDetail = galleryDetail,
-                            tagGroups = localTagInfo?.tagGroups ?: galleryDetail.tagGroups,
-                            canVoteTags = localTagInfo == null,
-                            voteTag = voteTag,
+                            tagGroups = localTagInfo?.tagGroups.orEmpty(),
                         )
                     } else if (localOnlyDetail) {
                         LocalBelowHeader(localTagInfo.tagGroups)
@@ -397,9 +393,7 @@ fun GalleryDetailContent(
                     if (galleryDetail != null) {
                         BelowHeader(
                             galleryDetail = galleryDetail,
-                            tagGroups = localTagInfo?.tagGroups ?: galleryDetail.tagGroups,
-                            canVoteTags = localTagInfo == null,
-                            voteTag = voteTag,
+                            tagGroups = localTagInfo?.tagGroups.orEmpty(),
                         )
                     } else if (localOnlyDetail) {
                         LocalBelowHeader(localTagInfo.tagGroups)
@@ -479,7 +473,6 @@ private fun LongClickableFilledTonalButton(
 context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
 private fun GalleryTagSection(
     tagGroups: List<GalleryTagGroup>,
-    onVoteTag: (suspend (String, Int) -> Unit)?,
 ) {
     if (tagGroups.isEmpty()) {
         Box(
@@ -496,9 +489,6 @@ private fun GalleryTagSection(
     val showDefine = stringResource(R.string.show_definition)
     val addFilter = stringResource(R.string.add_filter)
     val filterAdded = stringResource(R.string.filter_added)
-    val upTag = stringResource(R.string.tag_vote_up)
-    val downTag = stringResource(R.string.tag_vote_down)
-    val withDraw = stringResource(R.string.tag_vote_withdraw)
     fun search(tag: String) {
         DownloadsSearchRouter.search(tag)
         navigate(DownloadsScreenDestination)
@@ -506,7 +496,7 @@ private fun GalleryTagSection(
     GalleryTags(
         tagGroups = tagGroups,
         onTagClick = ::search,
-        onTagLongClick = { tag, translation, vote ->
+        onTagLongClick = { tag, translation, _ ->
             val rawValue = tag.substringAfter(':')
             launchIO {
                 awaitSelectAction {
@@ -529,16 +519,6 @@ private fun GalleryTagSection(
                         Filter(FilterMode.TAG, tag).remember()
                         snackbar(filterAdded)
                     }
-                    if (onVoteTag != null) {
-                        when (vote) {
-                            VoteStatus.None -> {
-                                onSelect(upTag) { onVoteTag(tag, 1) }
-                                onSelect(downTag) { onVoteTag(tag, -1) }
-                            }
-                            VoteStatus.Up -> onSelect(withDraw) { onVoteTag(tag, -1) }
-                            VoteStatus.Down -> onSelect(withDraw) { onVoteTag(tag, 1) }
-                        }
-                    }
                 }()
             }
         },
@@ -550,7 +530,7 @@ context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogStat
 private fun LocalBelowHeader(tagGroups: List<GalleryTagGroup>) {
     val keylineMargin = dimensionResource(com.hippo.ehviewer.R.dimen.keyline_margin)
     Spacer(modifier = Modifier.size(keylineMargin))
-    GalleryTagSection(tagGroups = tagGroups, onVoteTag = null)
+    GalleryTagSection(tagGroups = tagGroups)
     Spacer(modifier = Modifier.size(keylineMargin))
 }
 
@@ -559,8 +539,6 @@ context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogStat
 fun BelowHeader(
     galleryDetail: GalleryDetail,
     tagGroups: List<GalleryTagGroup>,
-    canVoteTags: Boolean,
-    voteTag: VoteTag,
 ) {
     @Composable
     fun GalleryDetailComment(commentsList: List<GalleryComment>) {
@@ -627,12 +605,7 @@ fun BelowHeader(
         }
         Spacer(modifier = Modifier.size(keylineMargin))
     }
-    val onVoteTag: (suspend (String, Int) -> Unit)? = if (canVoteTags && galleryDetail.apiUid >= 0) {
-        { tag, vote -> galleryDetail.voteTag(tag, vote) }
-    } else {
-        null
-    }
-    GalleryTagSection(tagGroups = tagGroups, onVoteTag = onVoteTag)
+    GalleryTagSection(tagGroups = tagGroups)
     Spacer(modifier = Modifier.size(keylineMargin))
     if (Settings.showComments.value) {
         GalleryDetailComment(galleryDetail.comments.comments)

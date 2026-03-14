@@ -197,8 +197,7 @@ fun AnimatedVisibilityScope.GalleryCommentsScreen(gid: Long, navigator: Destinat
 
     suspend fun refreshComment(showAll: Boolean) {
         val url = EhUrl.getGalleryDetailUrl(galleryDetail.gid, galleryDetail.token, allComment = showAll)
-        val detail = EhEngine.getGalleryDetail(url)
-        comments = detail.comments
+        comments = EhEngine.getGalleryComments(url)
     }
 
     val copyComment = stringResource(R.string.copy_comment_text)

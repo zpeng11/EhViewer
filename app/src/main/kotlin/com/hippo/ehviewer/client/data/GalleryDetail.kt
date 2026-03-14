@@ -38,10 +38,12 @@ private val LANGUAGES = arrayOf(
     "Dutch",
 )
 
-suspend fun GalleryDetail.fillInfo() {
+suspend fun GalleryDetail.fillInfo(updateSimpleTags: Boolean = true) {
     val index = LANGUAGES.indexOf(language)
     if (index != -1) simpleLanguage = GalleryInfo.S_LANGS[index]
-    simpleTags = tagGroups.toSimpleTagStrings()
+    if (updateSimpleTags) {
+        simpleTags = tagGroups.toSimpleTagStrings()
+    }
     favoriteSlot = EhDB.getLocalFavoriteSlot(gid)
 }
 

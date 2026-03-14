@@ -51,7 +51,6 @@ import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhEngine
 import com.hippo.ehviewer.client.EhUrl
 import com.hippo.ehviewer.client.EhUtils
-import com.hippo.ehviewer.client.data.fillInfo
 import com.hippo.ehviewer.coil.justDownload
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.library.LocalLibraryResolver
@@ -75,9 +74,6 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.serialization.Serializable
 import moe.tarsin.coroutines.runSuspendCatching
 import moe.tarsin.snackbar
-import moe.tarsin.tip
-
-typealias VoteTag = suspend GalleryDetail.(String, Int) -> Unit
 
 val detailCache = SieveCache<Long, GalleryDetail>(25)
 
@@ -148,22 +144,12 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                     getDetailError = e.displayString()
                 }.getOrNull()
             galleryDetail?.let {
+                val localInfo = localTagInfo?.fallbackInfo ?: galleryInfo
+                it.simpleTags = localInfo?.simpleTags ?: it.simpleTags
+                it.simpleLanguage = localInfo?.simpleLanguage ?: it.simpleLanguage
                 withIOContext { EhDB.putGalleryInfo(it.asEntity()) }
                 galleryInfo = it
             }
-        }
-    }
-
-    val voteTag: VoteTag = { tag, vote ->
-        runSuspendCatching {
-            EhEngine.voteTag(apiUid, apiKey, gid, token, tag, vote)
-        }.onSuccess { result ->
-            val new = copy(tagGroups = result).apply { fillInfo() }
-            detailCache[gid] = new
-            galleryInfo = new
-            tip(R.string.tag_vote_successfully)
-        }.onFailure { e ->
-            tip(e.displayString())
         }
     }
 
@@ -275,7 +261,6 @@ fun AnimatedVisibilityScope.GalleryDetailScreen(args: GalleryDetailScreenArgs, n
                 getDetailError = getDetailError,
                 localTagInfo = localTagInfo,
                 onRetry = { getDetailError = "" },
-                voteTag = voteTag,
                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             )
         } else if (getDetailError.isNotBlank()) {

@@ -226,7 +226,8 @@ pub fn parse_gallery_detail(dom: &mut VDom, body: &str) -> Result<GalleryDetail>
     let mut gallery_detail = GalleryDetail {
         // Check availability in `parse_preview_list` as that will be called independently
         previewList: parse_preview_list(dom, parser)?,
-        tagGroups: parse_tag_groups(dom, parser, false)?,
+        // Detail tags are now sourced from local simplified metadata only.
+        tagGroups: Vec::new(),
         comments: parse_comments(dom)?,
         ..Default::default()
     };

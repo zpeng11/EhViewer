@@ -52,7 +52,6 @@ import com.hippo.ehviewer.client.parser.TorrentParser
 import com.hippo.ehviewer.client.parser.TorrentResult
 import com.hippo.ehviewer.client.parser.UserConfigParser
 import com.hippo.ehviewer.client.parser.VoteCommentResult
-import com.hippo.ehviewer.client.parser.VoteTagParser
 import com.hippo.ehviewer.dailycheck.showEventNotification
 import com.hippo.ehviewer.dailycheck.today
 import com.hippo.ehviewer.util.AppConfig
@@ -254,11 +253,13 @@ object EhEngine {
             showEventNotification(it)
         }
         detail.apply {
-            // Fill info for database
-            fillInfo()
+            // Detail fetch should not backfill tags from remote tag groups.
+            fillInfo(updateSimpleTags = false)
             filterComments()
         }
     }
+
+    suspend fun getGalleryComments(url: String) = ehRequest(url, EhUrl.referer).fetchUsingAsByteBuffer(GalleryDetailParser::parseComments)
 
     suspend fun getPreviewList(url: String) = ehRequest(url, EhUrl.referer).fetchUsingAsByteBuffer(GalleryDetailParser::parsePreviews)
 
@@ -346,18 +347,6 @@ object EhEngine {
             put("comment_vote", commentVote)
         }
     }.fetchUsingAsText(String::parseAs)
-
-    suspend fun voteTag(apiUid: Long, apiKey: String?, gid: Long, token: String, tags: String, vote: Int) = ehRequest(EhUrl.apiUrl, EhUrl.referer, EhUrl.origin) {
-        jsonBody {
-            put("method", "taggallery")
-            put("apiuid", apiUid)
-            put("apikey", requireNotNull(apiKey))
-            put("gid", gid)
-            put("token", token)
-            put("tags", tags)
-            put("vote", vote)
-        }
-    }.fetchUsingAsByteBuffer(VoteTagParser::parse)
 
     suspend fun getGalleryToken(gid: Long, gtoken: String, page: Int) = ehRequest(EhUrl.apiUrl, EhUrl.referer, EhUrl.origin) {
         jsonBody {
