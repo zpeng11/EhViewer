@@ -8,6 +8,7 @@ import android.media.ExifInterface
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.compose.ui.unit.IntRect
+import arrow.fx.coroutines.parMap
 import coil3.BitmapImage
 import coil3.DrawableImage
 import com.ehviewer.core.database.model.DownloadInfo
@@ -21,15 +22,14 @@ import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.download.archiveFile
 import com.hippo.ehviewer.gallery.PageLoader
 import com.hippo.ehviewer.gallery.useArchivePageLoader
-import com.hippo.ehviewer.image.detectBorder
 import com.hippo.ehviewer.image.Image
 import com.hippo.ehviewer.image.ImageSource
 import com.hippo.ehviewer.image.PathSource
+import com.hippo.ehviewer.image.detectBorder
 import com.hippo.ehviewer.library.content.LocalGalleryContent
 import com.hippo.ehviewer.library.reader.useLocalGalleryPageLoader
 import com.hippo.ehviewer.util.AppConfig
 import com.hippo.ehviewer.util.ensureDirectory
-import arrow.fx.coroutines.parMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock

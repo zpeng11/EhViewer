@@ -143,10 +143,9 @@ fun AnimatedVisibilityScope.FavouritesScreen(navigator: DestinationsNavigator, v
     val checkedInfoMap = remember { mutableStateMapOf<Long, BaseGalleryInfo>() }
     val selectMode = checkedInfoMap.isNotEmpty()
 
-    fun extraFavoriteSlotBadge(info: BaseGalleryInfo): Int? =
-        info.favoriteSlot.takeIf {
-            selectedExtraSlot == null && it in LocalFavoriteFolder.VALID_SLOT_RANGE
-        }
+    fun extraFavoriteSlotBadge(info: BaseGalleryInfo): Int? = info.favoriteSlot.takeIf {
+        selectedExtraSlot == null && it in LocalFavoriteFolder.VALID_SLOT_RANGE
+    }
 
     fun openLocalFolder(slot: Int? = null) {
         route = LocalFavoritesRoute(folderSlot = slot, keyword = keyword)

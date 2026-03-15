@@ -16,7 +16,6 @@
 package com.hippo.ehviewer.ui
 
 import android.content.Context
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ehviewer.core.database.model.DownloadInfo
@@ -69,9 +69,9 @@ import com.hippo.ehviewer.util.FavouriteStatusRouter
 import com.hippo.ehviewer.util.restartApplication
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlin.time.Clock
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -240,12 +240,11 @@ suspend fun moveLocalFavoritesToDefaultFolder(galleryInfoList: Collection<Galler
     return updatedGids.size
 }
 
-suspend fun moveLocalFavoritesToTargetFolder(galleryInfoList: Collection<GalleryInfo>, slot: Int?): Int =
-    if (slot == null) {
-        moveLocalFavoritesToDefaultFolder(galleryInfoList)
-    } else {
-        moveLocalFavoritesToExtraFolder(galleryInfoList, slot)
-    }
+suspend fun moveLocalFavoritesToTargetFolder(galleryInfoList: Collection<GalleryInfo>, slot: Int?): Int = if (slot == null) {
+    moveLocalFavoritesToDefaultFolder(galleryInfoList)
+} else {
+    moveLocalFavoritesToExtraFolder(galleryInfoList, slot)
+}
 
 context(_: DestinationsNavigator)
 fun navToReader(info: BaseGalleryInfo, page: Int = -1) = navToReader(ReaderScreenArgs.Gallery(info, page))
@@ -267,13 +266,17 @@ suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
     )
 
     val actions = buildList {
-        add(GalleryAction(Icons.AutoMirrored.Default.MenuBook, R.string.read) {
-            navToReader(info)
-        })
+        add(
+            GalleryAction(Icons.AutoMirrored.Default.MenuBook, R.string.read) {
+                navToReader(info)
+            },
+        )
         if (downloaded) {
-            add(GalleryAction(Icons.Default.Delete, R.string.delete_downloads) {
-                confirmRemoveDownload(info)
-            })
+            add(
+                GalleryAction(Icons.Default.Delete, R.string.delete_downloads) {
+                    confirmRemoveDownload(info)
+                },
+            )
         }
         add(
             GalleryAction(
@@ -298,9 +301,11 @@ suspend fun doGalleryInfoAction(info: BaseGalleryInfo) {
             },
         )
         if (downloaded) {
-            add(GalleryAction(Icons.AutoMirrored.Default.DriveFileMove, R.string.download_move_dialog_title) {
-                showMoveDownloadLabel(info)
-            })
+            add(
+                GalleryAction(Icons.AutoMirrored.Default.DriveFileMove, R.string.download_move_dialog_title) {
+                    showMoveDownloadLabel(info)
+                },
+            )
         }
     }
     val selected = awaitSelectItemWithIcon(actions.map { it.icon to it.title }, EhUtils.getSuitableTitle(info))

@@ -105,7 +105,6 @@ import com.hippo.ehviewer.client.parser.GalleryPageUrlParser
 import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.ui.DrawerHandle
 import com.hippo.ehviewer.ui.Screen
-import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.awaitSelectDate
 import com.hippo.ehviewer.ui.destinations.ProgressScreenDestination
 import com.hippo.ehviewer.ui.doGalleryInfoAction
@@ -115,6 +114,7 @@ import com.hippo.ehviewer.ui.main.GalleryInfoGridItem
 import com.hippo.ehviewer.ui.main.GalleryInfoListItem
 import com.hippo.ehviewer.ui.main.GalleryList
 import com.hippo.ehviewer.ui.main.SearchFilter
+import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.ui.tools.awaitInputText

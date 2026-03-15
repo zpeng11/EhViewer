@@ -22,10 +22,11 @@ import com.ehviewer.core.model.TagNamespace.Mixed
 import com.ehviewer.core.model.TagNamespace.Other
 import com.ehviewer.core.model.TagNamespace.Parody
 import com.ehviewer.core.model.VoteStatus
-import com.hippo.ehviewer.client.data.languageTagForCode
 import com.hippo.ehviewer.client.EhUrl
+import com.hippo.ehviewer.client.data.languageTagForCode
 import java.io.BufferedInputStream
 import java.util.zip.ZipInputStream
+import kotlinx.io.Buffer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -33,7 +34,6 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.io.Buffer
 import net.devrieze.xmlutil.serialization.kxio.decodeFromSource
 import net.devrieze.xmlutil.serialization.kxio.encodeToSink
 import nl.adaptivity.xmlutil.XmlDeclMode
@@ -107,8 +107,8 @@ fun GalleryInfo.getComicInfo(): ComicInfo {
 }
 
 fun ComicInfo.toSimpleTags() = toTagGroups().flatMap { group ->
-        group.tags.map { tag -> "${group.namespace.value}:${tag.text}" }
-    }.ifEmpty { null }
+    group.tags.map { tag -> "${group.namespace.value}:${tag.text}" }
+}.ifEmpty { null }
 
 fun ComicInfo.toTagGroups(): List<GalleryTagGroup> {
     val groups = linkedMapOf<TagNamespace, LinkedHashSet<String>>()

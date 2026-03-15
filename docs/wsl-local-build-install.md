@@ -4,8 +4,9 @@ This guide is verified for the current local environment:
 
 - Project path: `/home/eleven/EhViewer`
 - Android SDK path: `/home/eleven/Android`
-- Wireless ADB target: `192.168.2.93:36729`
 - Shell: `zsh`
+
+**Wireless ADB**: Replace `<IP:PORT>` with your device's address (e.g., `192.168.2.93:36729`)
 
 ## 1. Install Linux build dependencies
 
@@ -119,20 +120,20 @@ app/build/outputs/native-debug-symbols/defaultRelease/native-debug-symbols.zip
 app/build/outputs/native-debug-symbols/marshmallowRelease/native-debug-symbols.zip
 ```
 
-## 8. Install release APK to this wireless ADB device
+## 8. Install release APK to wireless ADB device
 
 Connect and install (default universal release):
 
 ```bash
-"$HOME/Android/platform-tools/adb" connect 192.168.2.93:36729
-"$HOME/Android/platform-tools/adb" -s 192.168.2.93:36729 install -r \
+"$HOME/Android/platform-tools/adb" connect <IP:PORT>
+"$HOME/Android/platform-tools/adb" -s <IP:PORT> install -r \
   /home/eleven/EhViewer/app/build/outputs/apk/default/release/app-default-universal-release.apk
 ```
 
 Verify installed version:
 
 ```bash
-"$HOME/Android/platform-tools/adb" -s 192.168.2.93:36729 shell \
+"$HOME/Android/platform-tools/adb" -s <IP:PORT> shell \
   dumpsys package moe.tarsin.ehviewer | rg -n "versionName|versionCode|lastUpdateTime"
 ```
 
@@ -144,7 +145,7 @@ export ANDROID_HOME="$HOME/Android" ANDROID_SDK_ROOT="$HOME/Android" JAVA_HOME="
 source "$HOME/.cargo/env" && \
 ./gradlew :app:prepareLibraryDefinitionsDefaultRelease :app:prepareLibraryDefinitionsMarshmallowRelease --rerun -Prelease && \
 ./gradlew assembleRelease -Prelease && \
-"$HOME/Android/platform-tools/adb" connect 192.168.2.93:36729 && \
-"$HOME/Android/platform-tools/adb" -s 192.168.2.93:36729 install -r \
+"$HOME/Android/platform-tools/adb" connect <IP:PORT> && \
+"$HOME/Android/platform-tools/adb" -s <IP:PORT> install -r \
   /home/eleven/EhViewer/app/build/outputs/apk/default/release/app-default-universal-release.apk
 ```

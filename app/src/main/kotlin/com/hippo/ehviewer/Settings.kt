@@ -177,5 +177,4 @@ object Settings : DataStorePreferences(null) {
             }
         }
     }
-
 }

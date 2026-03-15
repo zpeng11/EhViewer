@@ -23,8 +23,8 @@ private fun matchesTagKeyword(tag: String, keyword: String): Boolean {
 }
 
 fun DownloadsFilterState.take(info: DownloadInfo) = mode.take(info, label) && with(info) {
-        title.containsIgnoreCase(keyword) ||
-            titleJpn.containsIgnoreCase(keyword) ||
-            uploader.containsIgnoreCase(keyword) ||
-            simpleTags?.any { matchesTagKeyword(it, keyword) } == true
-    }
+    title.containsIgnoreCase(keyword) ||
+        titleJpn.containsIgnoreCase(keyword) ||
+        uploader.containsIgnoreCase(keyword) ||
+        simpleTags?.any { matchesTagKeyword(it, keyword) } == true
+}

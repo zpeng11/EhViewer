@@ -32,8 +32,8 @@ import com.hippo.ehviewer.Settings
 import com.hippo.ehviewer.client.EhUrl
 import com.hippo.ehviewer.client.EhUtils
 import com.hippo.ehviewer.client.thumbUrl
-import com.hippo.ehviewer.util.FavouriteStatusRouter
 import com.hippo.ehviewer.ui.screen.navWithUrl
+import com.hippo.ehviewer.util.FavouriteStatusRouter
 import com.hippo.ehviewer.util.addTextToClipboard
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 

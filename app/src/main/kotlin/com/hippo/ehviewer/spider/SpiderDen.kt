@@ -55,9 +55,7 @@ class SpiderDen(private val info: GalleryInfo) {
         }
     }
 
-    private fun getImageSource(index: Int): PathSource {
-        return localContent().getImageSource(index)
-    }
+    private fun getImageSource(index: Int): PathSource = localContent().getImageSource(index)
 
     suspend fun exportAsCbz(file: Path) = downloadDir!!.find(archiveName)?.sendTo(file) ?: archiveTo(file)
 

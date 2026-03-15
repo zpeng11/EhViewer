@@ -63,10 +63,10 @@ import com.hippo.ehviewer.collectAsState
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.library.LocalLibraryResolver
 import com.hippo.ehviewer.ui.DrawerHandle
-import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.Screen
 import com.hippo.ehviewer.ui.doHistoryInfoAction
 import com.hippo.ehviewer.ui.main.GalleryInfoListItem
+import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
 import com.hippo.ehviewer.util.FavouriteStatusRouter
 import com.ramcosta.composedestinations.annotation.Destination

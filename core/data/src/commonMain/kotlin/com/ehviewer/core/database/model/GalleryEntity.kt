@@ -63,5 +63,4 @@ class GalleryEntity(
 
     @Ignore
     override var thumbHeight: Int = 0
-
 }
