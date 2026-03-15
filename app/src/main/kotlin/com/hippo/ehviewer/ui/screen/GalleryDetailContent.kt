@@ -3,8 +3,8 @@ package com.hippo.ehviewer.ui.screen
 import android.content.Context
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.MutatorMutex
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,7 +99,6 @@ import com.hippo.ehviewer.ktbuilder.imageRequest
 import com.hippo.ehviewer.library.previews.LocalDetailPreviewSession
 import com.hippo.ehviewer.library.previews.loadLocalDetailPreviewPage
 import com.hippo.ehviewer.ui.GalleryInfoBottomSheet
-import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.MainActivity
 import com.hippo.ehviewer.ui.addToFavorites
 import com.hippo.ehviewer.ui.destinations.DownloadsScreenDestination
@@ -114,6 +113,7 @@ import com.hippo.ehviewer.ui.main.GalleryTags
 import com.hippo.ehviewer.ui.modifyFavorites
 import com.hippo.ehviewer.ui.navToReader
 import com.hippo.ehviewer.ui.openBrowser
+import com.hippo.ehviewer.ui.rememberFavoriteNameResolver
 import com.hippo.ehviewer.ui.selectExtraFavoriteFolder
 import com.hippo.ehviewer.ui.tools.DialogState
 import com.hippo.ehviewer.ui.tools.awaitConfirmationOrCancel
@@ -248,6 +248,42 @@ fun GalleryDetailContent(
         }
     }
 
+    val copy = stringResource(android.R.string.copy)
+    val copyTrans = stringResource(R.string.copy_trans)
+    val showDefine = stringResource(R.string.show_definition)
+    val addFilter = stringResource(R.string.add_filter)
+    val searchBarHint = stringResource(R.string.search_bar_hint)
+    fun onTagClick(tag: String) {
+        DownloadsSearchRouter.search(tag)
+        navigate(DownloadsScreenDestination)
+    }
+    fun onTagLongClick(tag: String, translation: String) {
+        val rawValue = tag.substringAfter(':')
+        launchIO {
+            awaitSelectAction {
+                onSelect(searchBarHint.format(tag)) {
+                    withUIContext { onTagClick(tag) }
+                }
+                onSelect(copy) {
+                    addTextToClipboard(tag)
+                }
+                if (rawValue != translation) {
+                    onSelect(copyTrans) {
+                        addTextToClipboard(translation)
+                    }
+                }
+                onSelect(showDefine) {
+                    openBrowser(EhUrl.getTagDefinitionUrl(rawValue))
+                }
+                onSelect(addFilter) {
+                    awaitConfirmationOrCancel { Text(text = stringResource(R.string.filter_the_tag, tag)) }
+                    Filter(FilterMode.TAG, tag).remember()
+                    snackbar(filterAdded)
+                }
+            }()
+        }
+    }
+
     @Composable
     fun PrimaryActionButtons(modifier: Modifier = Modifier) {
         Row(
@@ -299,9 +335,11 @@ fun GalleryDetailContent(
             ) {
                 GalleryDetailHeaderCard(
                     info = galleryInfo,
+                    tagGroups = localTagInfo?.tagGroups.orEmpty(),
                     onInfoCardClick = ::onGalleryInfoCardClick,
                     onUploaderChipClick = ::onUploaderChipClick.partially1(galleryInfo),
-                    onBlockUploaderIconClick = ::showFilterUploaderDialog.partially1(galleryInfo),
+                    onTagClick = ::onTagClick,
+                    onTagLongClick = ::onTagLongClick,
                     localOnlyThumb = canReadLocally,
                     modifier = Modifier.fillMaxWidth().padding(vertical = keylineMargin),
                 )
@@ -319,10 +357,9 @@ fun GalleryDetailContent(
                     if (galleryDetail != null) {
                         BelowHeader(
                             galleryDetail = galleryDetail,
-                            tagGroups = localTagInfo?.tagGroups.orEmpty(),
                         )
                     } else if (localOnlyDetail) {
-                        LocalBelowHeader(localTagInfo.tagGroups)
+                        LocalBelowHeader()
                     } else if (showingLocalPreviewGrid) {
                         Spacer(modifier = Modifier.height(1.dp))
                     } else if (getDetailError.isNotBlank()) {
@@ -366,9 +403,11 @@ fun GalleryDetailContent(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     GalleryDetailHeaderCard(
                         info = galleryInfo,
+                        tagGroups = localTagInfo?.tagGroups.orEmpty(),
                         onInfoCardClick = ::onGalleryInfoCardClick,
                         onUploaderChipClick = ::onUploaderChipClick.partially1(galleryInfo),
-                        onBlockUploaderIconClick = ::showFilterUploaderDialog.partially1(galleryInfo),
+                        onTagClick = ::onTagClick,
+                        onTagLongClick = ::onTagLongClick,
                         localOnlyThumb = canReadLocally,
                         modifier = Modifier.width(dimensionResource(id = com.hippo.ehviewer.R.dimen.gallery_detail_card_landscape_width)).padding(vertical = keylineMargin),
                     )
@@ -393,10 +432,9 @@ fun GalleryDetailContent(
                     if (galleryDetail != null) {
                         BelowHeader(
                             galleryDetail = galleryDetail,
-                            tagGroups = localTagInfo?.tagGroups.orEmpty(),
                         )
                     } else if (localOnlyDetail) {
-                        LocalBelowHeader(localTagInfo.tagGroups)
+                        LocalBelowHeader()
                     } else if (showingLocalPreviewGrid) {
                         Spacer(modifier = Modifier.height(1.dp))
                     } else if (getDetailError.isNotBlank()) {
@@ -527,10 +565,9 @@ private fun GalleryTagSection(
 
 @Composable
 context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
-private fun LocalBelowHeader(tagGroups: List<GalleryTagGroup>) {
+private fun LocalBelowHeader() {
     val keylineMargin = dimensionResource(com.hippo.ehviewer.R.dimen.keyline_margin)
     Spacer(modifier = Modifier.size(keylineMargin))
-    GalleryTagSection(tagGroups = tagGroups)
     Spacer(modifier = Modifier.size(keylineMargin))
 }
 
@@ -538,7 +575,6 @@ private fun LocalBelowHeader(tagGroups: List<GalleryTagGroup>) {
 context(ctx: Context, _: CoroutineScope, _: DestinationsNavigator, _: DialogState, _: SnackbarHostState)
 fun BelowHeader(
     galleryDetail: GalleryDetail,
-    tagGroups: List<GalleryTagGroup>,
 ) {
     @Composable
     fun GalleryDetailComment(commentsList: List<GalleryComment>) {
@@ -605,7 +641,6 @@ fun BelowHeader(
         }
         Spacer(modifier = Modifier.size(keylineMargin))
     }
-    GalleryTagSection(tagGroups = tagGroups)
     Spacer(modifier = Modifier.size(keylineMargin))
     if (Settings.showComments.value) {
         GalleryDetailComment(galleryDetail.comments.comments)

@@ -68,7 +68,7 @@ fun GalleryTags(
 }
 
 @Composable
-private fun BaseRoundText(
+internal fun BaseRoundText(
     text: String,
     modifier: Modifier = Modifier,
     weak: Boolean = false,
