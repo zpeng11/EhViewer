@@ -3,13 +3,13 @@ package com.hippo.ehviewer.library.content
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.exists
 import com.ehviewer.core.files.find
-import com.ehviewer.core.files.isAnimatedForReader
 import com.ehviewer.core.files.isCifsDocumentPath
 import com.ehviewer.core.files.isDirectory
 import com.ehviewer.core.files.list
 import com.ehviewer.core.files.mkdirs
 import com.ehviewer.core.files.moveTo
 import com.ehviewer.core.files.sendTo
+import com.ehviewer.core.files.sendToWithCifsReadLease
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.util.logcat
 import com.hippo.ehviewer.EhApplication.Companion.imageCache as sCache
@@ -31,6 +31,8 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okio.Path
 
 class LocalGalleryContent(
@@ -143,14 +145,16 @@ class LocalGalleryContent(
         }
     }
 
-    suspend fun getImageSourceForReader(index: Int): PathSource {
-        getCachedReaderIsolation(index)?.let(::createReaderIsolatedSource)?.let { return it }
+    suspend fun getImageSourceForReader(index: Int): PathSource = getImageSourceWithCifsStaging(index) { source ->
+        source.source.isCifsDocumentPath()
+    }
+
+    suspend fun getImageSourceForPreview(index: Int): PathSource {
         val source = getImageSource(index)
-        if (!source.source.isCifsDocumentPath() || !source.source.isAnimatedForReader(source.type)) {
+        if (source.source.isPhysicalPath) {
             return source
         }
-        val isolated = copyForReaderIsolationWithRetry(index, source)
-        return createReaderIsolatedSource(isolated)
+        return copyForPreviewIsolationWithRetry(index, source)
     }
 
     fun getLocalPageCount(): Int {
@@ -189,6 +193,19 @@ class LocalGalleryContent(
         }
     }
 
+    private suspend fun getImageSourceWithCifsStaging(
+        index: Int,
+        shouldStage: (PathSource) -> Boolean,
+    ): PathSource {
+        getCachedReaderIsolation(index)?.let(::createReaderIsolatedSource)?.let { return it }
+        val source = getImageSource(index)
+        if (!shouldStage(source)) {
+            return source
+        }
+        val isolated = copyForReaderIsolationWithRetry(index, source)
+        return createReaderIsolatedSource(isolated)
+    }
+
     private suspend fun copyForReaderIsolationWithRetry(index: Int, source: PathSource): ReaderIsolatedEntry = source.use { pathSource ->
         val type = pathSource.type.lowercase()
         getCachedReaderIsolation(index)?.let { return@use it }
@@ -199,7 +216,7 @@ class LocalGalleryContent(
             val tempTarget = dir / "${target.name}.part"
             runCatching {
                 if (tempTarget.exists()) tempTarget.delete()
-                pathSource.source sendTo tempTarget
+                pathSource.source.sendToWithCifsStagingPermit(tempTarget)
                 if (target.exists()) target.delete()
                 tempTarget moveTo target
                 val entry = ReaderIsolatedEntry(target, type)
@@ -216,7 +233,32 @@ class LocalGalleryContent(
                 }
             }
         }
-        throw IOException("Failed to isolate CIFS animated source for page $index after $READER_COPY_MAX_ATTEMPTS attempts", lastError)
+        throw IOException("Failed to isolate CIFS source for page $index after $READER_COPY_MAX_ATTEMPTS attempts", lastError)
+    }
+
+    private suspend fun copyForPreviewIsolationWithRetry(index: Int, source: PathSource): PathSource = source.use { pathSource ->
+        val type = pathSource.type.lowercase()
+        val dir = (AppConfig.tempDir / PREVIEW_ISOLATION_DIR).apply { mkdirs() }
+        var lastError: Throwable? = null
+        repeat(PREVIEW_COPY_MAX_ATTEMPTS) { attempt ->
+            val target = dir / "$gid-${UUID.randomUUID()}-${perFilename(index, type)}"
+            val tempTarget = dir / "${target.name}.part"
+            runCatching {
+                if (tempTarget.exists()) tempTarget.delete()
+                pathSource.source.sendToWithCifsStagingPermit(tempTarget)
+                tempTarget moveTo target
+                return@use createPreviewIsolatedSource(target, type)
+            }.onFailure { err ->
+                lastError = err
+                runCatching { tempTarget.delete() }
+                runCatching { if (target.exists()) target.delete() }
+                if (err is CancellationException) throw err
+                if (attempt + 1 < PREVIEW_COPY_MAX_ATTEMPTS) {
+                    delay(PREVIEW_COPY_RETRY_DELAY_MS)
+                }
+            }
+        }
+        throw IOException("Failed to stage preview source for page $index after $PREVIEW_COPY_MAX_ATTEMPTS attempts", lastError)
     }
 
     private fun createReaderIsolatedSource(entry: ReaderIsolatedEntry) = object : PathSource {
@@ -224,11 +266,37 @@ class LocalGalleryContent(
         override val type = entry.type
         override fun close() = Unit
     }
+
+    private fun createPreviewIsolatedSource(path: Path, type: String) = object : PathSource {
+        override val source = path
+        override val type = type
+
+        override fun close() {
+            if (path.exists()) {
+                runCatching { path.delete() }.onFailure(::logcat)
+            }
+        }
+    }
 }
 
 private const val TEMP_SUFFIX = ".tmp"
 private const val READER_ISOLATION_DIR = "reader_cifs_isolation"
 private const val READER_COPY_MAX_ATTEMPTS = 2
 private const val READER_COPY_RETRY_DELAY_MS = 100L
+private const val PREVIEW_ISOLATION_DIR = "detail_preview_isolation"
+private const val PREVIEW_COPY_MAX_ATTEMPTS = 2
+private const val PREVIEW_COPY_RETRY_DELAY_MS = 100L
 private val PAGE_FILE_REGEX = Regex("^\\d{8}\\.\\w{3,4}")
+private val cifsStagingCopySemaphore = Semaphore(1)
+private val Path.isPhysicalPath get() = toString().startsWith('/')
 private data class ReaderIsolatedEntry(val path: Path, val type: String)
+
+private suspend fun Path.sendToWithCifsStagingPermit(target: Path) {
+    if (!isCifsDocumentPath()) {
+        this sendTo target
+        return
+    }
+    cifsStagingCopySemaphore.withPermit {
+        this@sendToWithCifsStagingPermit.sendToWithCifsReadLease(target)
+    }
+}

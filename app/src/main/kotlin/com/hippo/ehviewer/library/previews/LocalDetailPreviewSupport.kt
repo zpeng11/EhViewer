@@ -58,6 +58,8 @@ private val localDetailPreviewTargetSize by lazy {
 private val localDetailPreviewCacheDir: Path
     get() = (AppConfig.tempDir / LOCAL_DETAIL_PREVIEW_DIR).apply { check(ensureDirectory()) }
 
+private val Path.isPhysicalPath get() = toString().startsWith('/')
+
 private fun buildLocalDetailPreviewPath(gid: Long, index: Int) = localDetailPreviewCacheDir / "preview-$gid-$index.$LOCAL_DETAIL_PREVIEW_EXTENSION"
 
 private data class PreviewTargetSize(
@@ -135,14 +137,13 @@ private fun previewBitmapFromCoilImage(image: Image): PreviewBitmap? = when (val
 private fun exifRotationDegrees(pathSource: PathSource): Float {
     val extension = pathSource.type.lowercase()
     if (extension !in setOf("jpg", "jpeg")) return 0f
+    val localPath = pathSource.source.takeIf { it.isPhysicalPath }?.toString() ?: return 0f
     return runCatching {
-        ParcelFileDescriptor.AutoCloseInputStream(pathSource.source.openFileDescriptor("r")).use { input ->
-            when (ExifInterface(input).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-                else -> 0f
-            }
+        when (ExifInterface(localPath).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
         }
     }.getOrDefault(0f)
 }
@@ -277,7 +278,7 @@ private class LocalContentPreviewBackend(
         concurrency = LOCAL_DETAIL_PREVIEW_MAX_CONCURRENCY,
     ) { index ->
         createLocalDetailPreviewItem(gid, index) {
-            content.getImageSource(index)
+            content.getImageSourceForPreview(index)
         }
     }
 }
