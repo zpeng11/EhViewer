@@ -36,6 +36,8 @@ import coil3.size.Precision
 import coil3.size.Scale
 import coil3.size.Size
 import coil3.size.SizeResolver
+import com.ehviewer.core.files.isCifsDocumentPath
+import com.ehviewer.core.files.openFileDescriptor
 import com.ehviewer.core.files.toUri
 import com.ehviewer.core.util.isAtLeastP
 import com.ehviewer.core.util.isAtLeastU
@@ -96,7 +98,18 @@ class Image private constructor(image: CoilImage, private val src: ImageSource) 
             val request = with(appCtx) {
                 imageRequest {
                     onLeft { data(it.source) }
-                    onRight { data(it.source.toUri()) }
+                    onRight {
+                        if (it.source.isCifsDocumentPath()) {
+                            // Read via semaphore-protected FD to avoid Coil's
+                            // ContentUriFetcher bypassing CIFS throttling.
+                            val buf = android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                                it.source.openFileDescriptor("r"),
+                            ).use { input -> java.nio.ByteBuffer.wrap(input.readBytes()) }
+                            data(buf)
+                        } else {
+                            data(it.source.toUri())
+                        }
+                    }
                     size(sizeResolver)
                     scale(Scale.FILL)
                     precision(Precision.INEXACT)

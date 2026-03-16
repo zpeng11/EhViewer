@@ -50,6 +50,7 @@ import com.ehviewer.core.util.logcat
 import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.client.EhTagDatabase
 import com.hippo.ehviewer.coil.AnimatedWebPDecoder
+import com.hippo.ehviewer.coil.CifsContentFetcher
 import com.hippo.ehviewer.coil.CropBorderInterceptor
 import com.hippo.ehviewer.coil.DetectBorderInterceptor
 import com.hippo.ehviewer.coil.DownloadThumbInterceptor
@@ -172,6 +173,7 @@ class EhApplication : Application(), SingletonImageLoader.Factory {
                     connectivityChecker = { ConnectivityChecker.ONLINE },
                 ),
             )
+            add(CifsContentFetcher.Factory())
             add(MergeInterceptor)
             add(DownloadThumbInterceptor)
             if (isAtLeastO) {
