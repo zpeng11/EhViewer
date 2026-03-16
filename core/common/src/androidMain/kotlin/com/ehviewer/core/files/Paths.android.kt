@@ -4,13 +4,14 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import androidx.core.net.toUri
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.buffered
 import okio.Path
 import okio.Path.Companion.toPath
 
-internal const val CIFS_DOCUMENT_AUTHORITY = "com.wa2c.android.cifsdocumentsprovider.documents"
+const val CIFS_DOCUMENT_AUTHORITY = "com.wa2c.android.cifsdocumentsprovider.documents"
 private const val WEBP_HEADER_SCAN_BYTES = 32 * 1024
 private const val WEBP_ANIMATION_FLAG = 0x02
 private val RIFF_TAG = byteArrayOf('R'.code.toByte(), 'I'.code.toByte(), 'F'.code.toByte(), 'F'.code.toByte())
@@ -66,7 +67,16 @@ fun Uri.toOkioPath() = if (scheme == ContentResolver.SCHEME_FILE) {
     toString()
 }.toPath()
 
-private fun Path.hasAnimatedWebpHeader() = runCatching {
+private val animatedWebpCache = ConcurrentHashMap<String, Boolean>()
+
+private fun Path.hasAnimatedWebpHeader(): Boolean {
+    val key = toString()
+    animatedWebpCache[key]?.let { return it }
+    return runCatching { hasAnimatedWebpHeaderUncached() }.getOrDefault(false)
+        .also { animatedWebpCache[key] = it }
+}
+
+private fun Path.hasAnimatedWebpHeaderUncached() =
     ParcelFileDescriptor.AutoCloseInputStream(openFileDescriptor("r")).use { input ->
         val header = ByteArray(WEBP_HEADER_SCAN_BYTES)
         var total = 0
@@ -85,7 +95,6 @@ private fun Path.hasAnimatedWebpHeader() = runCatching {
         }
         header.indexOfTag(ANIM_TAG, total, start = 12) >= 0
     }
-}.getOrDefault(false)
 
 private fun ByteArray.matchesTag(offset: Int, tag: ByteArray): Boolean {
     if (offset < 0 || offset + tag.size > size) return false

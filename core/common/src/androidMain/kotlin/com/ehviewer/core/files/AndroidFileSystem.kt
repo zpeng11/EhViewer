@@ -23,6 +23,26 @@ import okio.Path
 import okio.Sink
 import okio.Source
 
+/**
+ * Limits concurrent IPC calls to CIFS DocumentProvider to prevent
+ * connection/transaction exhaustion that leads to provider deadlock.
+ */
+private val cifsSemaphore = java.util.concurrent.Semaphore(4)
+
+/**
+ * Tracks the last time a CIFS IPC operation succeeded.
+ * Used to detect stale SMB sessions after idle periods.
+ */
+private val cifsLastSuccess = java.util.concurrent.atomic.AtomicLong(0L)
+
+/**
+ * Serializes CIFS recovery attempts so that only one thread
+ * probes the stale connection at a time, preventing a burst
+ * of reconnection attempts from overwhelming the provider.
+ */
+private val cifsRecoveryLock = java.util.concurrent.Semaphore(1)
+private const val CIFS_STALE_THRESHOLD_MS = 30_000L
+
 class AndroidFileSystem(context: Context) : FileSystem() {
     private val contentResolver = context.contentResolver
     private val physicalFileSystem = SYSTEM
@@ -36,8 +56,11 @@ class AndroidFileSystem(context: Context) : FileSystem() {
             return physicalFileSystem.atomicMove(source, target)
         }
 
+        val isCifs = source.toUri().isCifsDocument()
         source.runCatching {
-            DocumentsContract.renameDocument(contentResolver, toUri(), target.name)
+            withCifsThrottle(isCifs) {
+                DocumentsContract.renameDocument(contentResolver, toUri(), target.name)
+            }
         }.onFailure {
             // ExternalStorageProvider always throw exception when renameDocument on API 28
             // https://android.googlesource.com/platform/frameworks/base/+/7bf90408e36613a84dc2a665905fde2c83cfa797
@@ -85,8 +108,11 @@ class AndroidFileSystem(context: Context) : FileSystem() {
             }
         }
 
+        val isCifs = dir.toUri().isCifsDocument()
         dir.parent?.runCatching {
-            DocumentsContract.createDocument(contentResolver, toUri(), Document.MIME_TYPE_DIR, dir.name)
+            withCifsThrottle(isCifs) {
+                DocumentsContract.createDocument(contentResolver, toUri(), Document.MIME_TYPE_DIR, dir.name)
+            }
         }?.getOrNull() ?: throw IOException("Failed to create directory: $dir")
     }
 
@@ -103,12 +129,15 @@ class AndroidFileSystem(context: Context) : FileSystem() {
 
         if (metadata != null) {
             var uri = path.toUri()
-            if (uri.isCifsDocument() && metadata.isDirectory) {
+            val isCifs = uri.isCifsDocument()
+            if (isCifs && metadata.isDirectory) {
                 uri = DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getDocumentId(uri) + '/')
             }
 
             val deleted = runCatching {
-                DocumentsContract.deleteDocument(contentResolver, uri)
+                withCifsThrottle(isCifs) {
+                    DocumentsContract.deleteDocument(contentResolver, uri)
+                }
             }.getOrDefault(false)
             if (!deleted) {
                 throw IOException("Failed to delete $path")
@@ -143,19 +172,22 @@ class AndroidFileSystem(context: Context) : FileSystem() {
             }
         }
 
+        val uri = dir.toUri()
+        val isCifs = uri.isCifsDocument()
         return runCatching {
-            val uri = dir.toUri()
             var documentId = DocumentsContract.getDocumentId(uri)
-            if (uri.isCifsDocument()) {
+            if (isCifs) {
                 documentId += '/'
             }
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, documentId)
 
-            contentResolver.query(childrenUri, arrayOf(Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { c ->
-                List(c.count) {
-                    c.moveToNext()
-                    val displayName = c.getString(0)
-                    dir / displayName
+            withCifsThrottle(isCifs) {
+                contentResolver.query(childrenUri, arrayOf(Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { c ->
+                    List(c.count) {
+                        c.moveToNext()
+                        val displayName = c.getString(0)
+                        dir / displayName
+                    }
                 }
             }
         }.getOrElse { if (throwOnFailure) throw FileNotFoundException("Failed to list $dir") else null }
@@ -166,8 +198,9 @@ class AndroidFileSystem(context: Context) : FileSystem() {
             return physicalFileSystem.metadataOrNull(path)
         }
 
+        val uri = path.toUri()
+        val isCifs = uri.isCifsDocument()
         return runCatching {
-            val uri = path.toUri()
             val isMediaUri = uri.authority == MediaStore.AUTHORITY
             val projection = if (isMediaUri) {
                 arrayOf(MediaStore.MediaColumns.MIME_TYPE, MediaStore.MediaColumns.DATE_MODIFIED)
@@ -175,18 +208,20 @@ class AndroidFileSystem(context: Context) : FileSystem() {
                 arrayOf(Document.COLUMN_MIME_TYPE, Document.COLUMN_LAST_MODIFIED)
             }
 
-            contentResolver.query(uri, projection, null, null, null)?.use { c ->
-                if (!c.moveToNext()) return null
+            withCifsThrottle(isCifs) {
+                contentResolver.query(uri, projection, null, null, null)?.use { c ->
+                    if (!c.moveToNext()) return@withCifsThrottle null
 
-                val mimeType = c.getString(0)
-                val lastModified = c.getLongOrNull(1)?.let { if (isMediaUri) it * 1000 else it }
-                val isDirectory = mimeType == Document.MIME_TYPE_DIR
+                    val mimeType = c.getString(0)
+                    val lastModified = c.getLongOrNull(1)?.let { if (isMediaUri) it * 1000 else it }
+                    val isDirectory = mimeType == Document.MIME_TYPE_DIR
 
-                FileMetadata(
-                    isRegularFile = !isDirectory,
-                    isDirectory = isDirectory,
-                    lastModifiedAtMillis = lastModified,
-                )
+                    FileMetadata(
+                        isRegularFile = !isDirectory,
+                        isDirectory = isDirectory,
+                        lastModifiedAtMillis = lastModified,
+                    )
+                }
             }
         }.getOrNull()
     }
@@ -216,15 +251,30 @@ class AndroidFileSystem(context: Context) : FileSystem() {
             return ParcelFileDescriptor.open(path.toFile(), ParcelFileDescriptor.parseMode(mode))
         }
 
-        return runCatching {
-            if ('w' in mode && !exists(path)) {
-                val parent = path.parent ?: return@runCatching null
-                val displayName = path.name
-                val extension = displayName.substringAfterLast('.', "").ifEmpty { null }?.lowercase()
-                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"
+        val uri = path.toUri()
+        val isCifs = uri.isCifsDocument()
+        // Separate exists-check and create from the open call to avoid
+        // nested cifsSemaphore acquisition which can deadlock.
+        if (isCifs && 'w' in mode && !exists(path)) {
+            val parent = path.parent ?: throw FileNotFoundException("Failed to open file: $path")
+            val displayName = path.name
+            val extension = displayName.substringAfterLast('.', "").ifEmpty { null }?.lowercase()
+            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"
+            withCifsThrottle(true) {
                 DocumentsContract.createDocument(contentResolver, parent.toUri(), mimeType, displayName)
             }
-            contentResolver.openFileDescriptor(path.toUri(), mode)
+        }
+        return runCatching {
+            withCifsThrottle(isCifs) {
+                if (!isCifs && 'w' in mode && !exists(path)) {
+                    val parent = path.parent ?: return@withCifsThrottle null
+                    val displayName = path.name
+                    val extension = displayName.substringAfterLast('.', "").ifEmpty { null }?.lowercase()
+                    val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"
+                    DocumentsContract.createDocument(contentResolver, parent.toUri(), mimeType, displayName)
+                }
+                contentResolver.openFileDescriptor(uri, mode)
+            }
         }.getOrNull() ?: throw FileNotFoundException("Failed to open file: $path")
     }
 
@@ -236,3 +286,68 @@ class AndroidFileSystem(context: Context) : FileSystem() {
 private fun Path.isPhysicalFile() = toString().startsWith('/')
 
 private fun Uri.isCifsDocument() = authority == CIFS_DOCUMENT_AUTHORITY
+
+private const val CIFS_OP_TIMEOUT_MS = 30_000L
+
+private inline fun <T> withCifsThrottle(isCifs: Boolean, block: () -> T): T {
+    if (!isCifs) return block()
+
+    val stale = System.currentTimeMillis() - cifsLastSuccess.get() > CIFS_STALE_THRESHOLD_MS
+    if (stale) {
+        // Connection may be stale after idle.  Serialize recovery so that
+        // only one thread probes the provider at a time, preventing a
+        // burst of reconnection attempts from crashing it.
+        cifsRecoveryLock.acquire()
+        try {
+            // Another thread may have recovered while we waited for the lock.
+            if (System.currentTimeMillis() - cifsLastSuccess.get() > CIFS_STALE_THRESHOLD_MS) {
+                var lastEx: Throwable? = null
+                repeat(3) { attempt ->
+                    if (!cifsSemaphore.tryAcquire(CIFS_OP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                        throw IOException("CIFS semaphore acquisition timed out")
+                    }
+                    try {
+                        val result = block()
+                        cifsLastSuccess.set(System.currentTimeMillis())
+                        return result
+                    } catch (e: Throwable) {
+                        lastEx = e
+                    } finally {
+                        cifsSemaphore.release()
+                    }
+                    // Give the provider time to re-establish the SMB session.
+                    Thread.sleep(500L * (attempt + 1))
+                }
+                throw lastEx!!
+            }
+        } finally {
+            cifsRecoveryLock.release()
+        }
+    }
+
+    // Normal path – connection is fresh.
+    if (!cifsSemaphore.tryAcquire(CIFS_OP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+        throw IOException("CIFS semaphore acquisition timed out")
+    }
+    return try {
+        val result = block()
+        cifsLastSuccess.set(System.currentTimeMillis())
+        result
+    } catch (e: Throwable) {
+        // Single retry on failure for the normal (non-stale) path.
+        cifsSemaphore.release()
+        Thread.sleep(500L)
+        if (!cifsSemaphore.tryAcquire(CIFS_OP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+            throw IOException("CIFS semaphore acquisition timed out")
+        }
+        try {
+            val result = block()
+            cifsLastSuccess.set(System.currentTimeMillis())
+            result
+        } catch (_: Throwable) {
+            throw e // Throw the original exception
+        }
+    } finally {
+        cifsSemaphore.release()
+    }
+}
