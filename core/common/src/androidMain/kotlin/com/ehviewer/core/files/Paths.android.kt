@@ -21,6 +21,14 @@ private val ANIM_TAG = byteArrayOf('A'.code.toByte(), 'N'.code.toByte(), 'I'.cod
 
 fun Path.openFileDescriptor(mode: String) = PlatformSystemFileSystem.openFileDescriptor(this, mode)
 
+fun Path.sendToWithCifsReadLease(target: Path) {
+    if (isCifsDocumentPath()) {
+        PlatformSystemFileSystem.copyFromCifsWithLease(this, target)
+    } else {
+        this sendTo target
+    }
+}
+
 actual inline fun <T> Path.read(f: Source.() -> T) = PlatformSystemFileSystem.rawSource(this).buffered().use(f)
 
 actual inline fun <T> Path.write(f: Sink.() -> T) = PlatformSystemFileSystem.rawSink(this).buffered().use(f)

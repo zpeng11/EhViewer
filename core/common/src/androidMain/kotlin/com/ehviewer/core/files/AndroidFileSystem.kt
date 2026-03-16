@@ -75,6 +75,16 @@ class AndroidFileSystem(context: Context) : FileSystem() {
     }
 
     override fun copy(source: Path, target: Path) {
+        val usesCifsDocument = source.toUri().isCifsDocument() || target.toUri().isCifsDocument()
+        if (usesCifsDocument) {
+            source.inputStream().use { src ->
+                target.outputStream().use { dst ->
+                    src.copyTo(dst)
+                }
+            }
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             source.openFileDescriptor("r").use { src ->
                 target.openFileDescriptor("wt").use { dst ->
@@ -90,6 +100,17 @@ class AndroidFileSystem(context: Context) : FileSystem() {
         source.inputStream().use { src ->
             target.outputStream().use { dst ->
                 src.channel.transferTo(0, Long.MAX_VALUE, dst.channel)
+            }
+        }
+    }
+
+    fun copyFromCifsWithLease(source: Path, target: Path) {
+        require(source.toUri().isCifsDocument()) { "Source must be a CIFS document: $source" }
+        withCifsReadLease {
+            ParcelFileDescriptor.AutoCloseInputStream(openRawCifsReadFileDescriptor(source)).use { src ->
+                target.outputStream().use { dst ->
+                    src.copyTo(dst, CIFS_READ_COPY_BUFFER_SIZE)
+                }
             }
         }
     }
@@ -281,6 +302,13 @@ class AndroidFileSystem(context: Context) : FileSystem() {
     private fun Path.inputStream() = ParcelFileDescriptor.AutoCloseInputStream(openFileDescriptor(this, "r"))
 
     private fun Path.outputStream() = ParcelFileDescriptor.AutoCloseOutputStream(openFileDescriptor(this, "wt"))
+
+    private fun openRawCifsReadFileDescriptor(path: Path): ParcelFileDescriptor {
+        val uri = path.toUri()
+        require(uri.isCifsDocument()) { "Path must be a CIFS document: $path" }
+        return contentResolver.openFileDescriptor(uri, "r")
+            ?: throw FileNotFoundException("Failed to open file: $path")
+    }
 }
 
 private fun Path.isPhysicalFile() = toString().startsWith('/')
@@ -288,6 +316,38 @@ private fun Path.isPhysicalFile() = toString().startsWith('/')
 private fun Uri.isCifsDocument() = authority == CIFS_DOCUMENT_AUTHORITY
 
 private const val CIFS_OP_TIMEOUT_MS = 30_000L
+private const val CIFS_READ_COPY_BUFFER_SIZE = 1024 * 1024
+
+private fun acquireCifsPermit() {
+    if (!cifsSemaphore.tryAcquire(CIFS_OP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+        throw IOException("CIFS semaphore acquisition timed out")
+    }
+}
+
+private inline fun <T> withCifsReadLease(block: () -> T): T {
+    val stale = System.currentTimeMillis() - cifsLastSuccess.get() > CIFS_STALE_THRESHOLD_MS
+    val maxAttempts = if (stale) 3 else 2
+    var lastFailure: Throwable? = null
+
+    repeat(maxAttempts) { attempt ->
+        acquireCifsPermit()
+        try {
+            val result = block()
+            cifsLastSuccess.set(System.currentTimeMillis())
+            return result
+        } catch (e: Throwable) {
+            lastFailure = e
+        } finally {
+            cifsSemaphore.release()
+        }
+
+        if (attempt + 1 < maxAttempts) {
+            Thread.sleep(if (stale) 500L * (attempt + 1) else 500L)
+        }
+    }
+
+    throw lastFailure ?: IOException("CIFS read lease failed without an exception")
+}
 
 private inline fun <T> withCifsThrottle(isCifs: Boolean, block: () -> T): T {
     if (!isCifs) return block()
@@ -303,9 +363,7 @@ private inline fun <T> withCifsThrottle(isCifs: Boolean, block: () -> T): T {
             if (System.currentTimeMillis() - cifsLastSuccess.get() > CIFS_STALE_THRESHOLD_MS) {
                 var lastEx: Throwable? = null
                 repeat(3) { attempt ->
-                    if (!cifsSemaphore.tryAcquire(CIFS_OP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-                        throw IOException("CIFS semaphore acquisition timed out")
-                    }
+                    acquireCifsPermit()
                     try {
                         val result = block()
                         cifsLastSuccess.set(System.currentTimeMillis())
@@ -326,27 +384,27 @@ private inline fun <T> withCifsThrottle(isCifs: Boolean, block: () -> T): T {
     }
 
     // Normal path – connection is fresh.
-    if (!cifsSemaphore.tryAcquire(CIFS_OP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-        throw IOException("CIFS semaphore acquisition timed out")
-    }
-    return try {
+    acquireCifsPermit()
+    lateinit var firstFailure: Throwable
+    try {
         val result = block()
         cifsLastSuccess.set(System.currentTimeMillis())
-        result
+        return result
     } catch (e: Throwable) {
-        // Single retry on failure for the normal (non-stale) path.
+        firstFailure = e
+    } finally {
         cifsSemaphore.release()
-        Thread.sleep(500L)
-        if (!cifsSemaphore.tryAcquire(CIFS_OP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-            throw IOException("CIFS semaphore acquisition timed out")
-        }
-        try {
-            val result = block()
-            cifsLastSuccess.set(System.currentTimeMillis())
-            result
-        } catch (_: Throwable) {
-            throw e // Throw the original exception
-        }
+    }
+
+    // Single retry on failure for the normal (non-stale) path.
+    Thread.sleep(500L)
+    acquireCifsPermit()
+    try {
+        val result = block()
+        cifsLastSuccess.set(System.currentTimeMillis())
+        return result
+    } catch (_: Throwable) {
+        throw firstFailure
     } finally {
         cifsSemaphore.release()
     }
