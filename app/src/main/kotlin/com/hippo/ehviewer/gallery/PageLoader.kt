@@ -192,5 +192,5 @@ abstract class PageLoader(
         }
     }
 
-    abstract fun openSource(index: Int): ImageSource
+    abstract suspend fun openSource(index: Int): ImageSource
 }

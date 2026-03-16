@@ -185,24 +185,24 @@ private fun calculateInSampleSize(
 
 private fun decodeSampledPathPreview(pathSource: PathSource): Bitmap? {
     val targetSize = localDetailPreviewTargetSize
-    val bounds = BitmapFactory.Options().apply {
-        inJustDecodeBounds = true
-    }
-    ParcelFileDescriptor.AutoCloseInputStream(pathSource.source.openFileDescriptor("r")).use { input ->
-        BitmapFactory.decodeStream(input, null, bounds)
-    }
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    return ParcelFileDescriptor.AutoCloseInputStream(pathSource.source.openFileDescriptor("r")).use { input ->
+        val fd = input.fd
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeFileDescriptor(fd, null, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@use null
 
-    val options = BitmapFactory.Options().apply {
-        inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, targetSize.width, targetSize.height)
-        inPreferredConfig = Bitmap.Config.ARGB_8888
-    }
-    val bitmap = ParcelFileDescriptor.AutoCloseInputStream(pathSource.source.openFileDescriptor("r")).use { input ->
-        BitmapFactory.decodeStream(input, null, options)
-    } ?: return null
-    return bitmap
-        .rotateIfNeeded(exifRotationDegrees(pathSource))
-        .cropBordersIfNeeded()
+        // Seek back to start for actual decode
+        android.system.Os.lseek(fd, 0, android.system.OsConstants.SEEK_SET)
+
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, targetSize.width, targetSize.height)
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        BitmapFactory.decodeFileDescriptor(fd, null, options)
+    }?.rotateIfNeeded(exifRotationDegrees(pathSource))
+        ?.cropBordersIfNeeded()
 }
 
 private fun detailPreviewCompressFormat() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -245,7 +245,7 @@ private suspend fun writeStaticPreview(source: ImageSource, target: Path): Path?
 private suspend fun ensureLocalDetailPreviewFile(
     gid: Long,
     index: Int,
-    openSource: () -> ImageSource,
+    openSource: suspend () -> ImageSource,
 ): Path? {
     val target = buildLocalDetailPreviewPath(gid, index)
     if (target.isFile) return target
@@ -298,7 +298,7 @@ private class ArchivePreviewBackend(
 private suspend fun createLocalDetailPreviewItem(
     gid: Long,
     index: Int,
-    openSource: () -> ImageSource,
+    openSource: suspend () -> ImageSource,
 ) = V1GalleryPreview(
     url = ensureLocalDetailPreviewFile(gid, index, openSource)?.toUri()?.toString().orEmpty(),
     position = index,

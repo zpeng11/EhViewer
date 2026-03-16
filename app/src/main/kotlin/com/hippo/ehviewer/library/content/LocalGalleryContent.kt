@@ -30,6 +30,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import okio.Path
 
 class LocalGalleryContent(
@@ -142,7 +143,7 @@ class LocalGalleryContent(
         }
     }
 
-    fun getImageSourceForReader(index: Int): PathSource {
+    suspend fun getImageSourceForReader(index: Int): PathSource {
         getCachedReaderIsolation(index)?.let(::createReaderIsolatedSource)?.let { return it }
         val source = getImageSource(index)
         if (!source.source.isCifsDocumentPath() || !source.source.isAnimatedForReader(source.type)) {
@@ -188,7 +189,7 @@ class LocalGalleryContent(
         }
     }
 
-    private fun copyForReaderIsolationWithRetry(index: Int, source: PathSource): ReaderIsolatedEntry = source.use { pathSource ->
+    private suspend fun copyForReaderIsolationWithRetry(index: Int, source: PathSource): ReaderIsolatedEntry = source.use { pathSource ->
         val type = pathSource.type.lowercase()
         getCachedReaderIsolation(index)?.let { return@use it }
         val dir = getOrCreateReaderIsolationDir()
@@ -211,7 +212,7 @@ class LocalGalleryContent(
                 runCatching { tempTarget.delete() }
                 if (err is CancellationException) throw err
                 if (attempt + 1 < READER_COPY_MAX_ATTEMPTS) {
-                    Thread.sleep(READER_COPY_RETRY_DELAY_MS)
+                    delay(READER_COPY_RETRY_DELAY_MS)
                 }
             }
         }

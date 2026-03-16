@@ -79,7 +79,7 @@ suspend inline fun <T> useArchivePageLoader(
                     false
                 }
 
-                override fun openSource(index: Int): ImageSource {
+                override suspend fun openSource(index: Int): ImageSource {
                     val buffer = extractToByteBuffer(index)
                     checkNotNull(buffer) { "Extract archive content $index failed!" }
                     check(buffer.isDirect)

@@ -43,7 +43,7 @@ suspend inline fun <T> useLocalGalleryPageLoader(
 
                 override fun save(index: Int, file: Path) = content.saveToPath(index, file)
 
-                override fun openSource(index: Int) = content.getImageSourceForReader(index)
+                override suspend fun openSource(index: Int) = content.getImageSourceForReader(index)
 
                 override fun prefetchPages(pages: List<Int>, bounds: IntRange) = Unit
 
