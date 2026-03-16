@@ -30,6 +30,7 @@ import com.ehviewer.core.database.model.DownloadInfo
 import com.ehviewer.core.database.model.DownloadLabel
 import com.ehviewer.core.files.delete
 import com.ehviewer.core.files.find
+import com.ehviewer.core.files.isCifsDocumentPath
 import com.ehviewer.core.files.isDirectory
 import com.ehviewer.core.files.toOkioPath
 import com.ehviewer.core.files.toUri
@@ -61,6 +62,7 @@ import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.yield
 import logcat.LogPriority
 import okio.Path
 import okio.Path.Companion.toOkioPath
@@ -278,6 +280,8 @@ object DownloadManager {
     }
 
     suspend fun readMetadataFromLocal() {
+        val isCifs = downloadLocation.isCifsDocumentPath()
+        val concurrency = if (isCifs) 2 else 5
         val list = sortMutex.withLock {
             allInfoList.mapNotNull {
                 val updateGallery = it.pages == 0 || it.simpleTags == null || needsComicInfoTagNormalization(it.simpleTags)
@@ -288,7 +292,7 @@ object DownloadManager {
                     null
                 }
             }
-        }.parMapNotNull(concurrency = 5) { (info, updateGallery, updateArtist) ->
+        }.parMapNotNull(concurrency = concurrency) { (info, updateGallery, updateArtist) ->
             info.downloadDir?.run {
                 val comicInfo = find(COMIC_INFO_FILE)?.let { readComicInfo(it) }
                     ?: info.archiveFile?.let { readComicInfoFromArchive(it) }
@@ -343,8 +347,10 @@ object DownloadManager {
     }
 
     suspend fun backfillLocalThumbs() {
+        val isCifs = downloadLocation.isCifsDocumentPath()
         val snapshot = sortMutex.withLock { allInfoList.toList() }
         snapshot.forEach { info ->
+            if (isCifs) yield()
             val hadLocalThumb = info.findLocalThumbFile() != null
             if (!hadLocalThumb && info.ensureLocalThumbFile() != null) {
                 notifyLocalThumbReady(info.gid)

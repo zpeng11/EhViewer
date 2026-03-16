@@ -70,7 +70,7 @@ class SpiderDen(private val info: GalleryInfo) {
             f.openFileDescriptor("r")
         }
         val pages = info.pages
-        val (fdBatch, names) = (0 until pages).parMap { idx ->
+        val (fdBatch, names) = (0 until pages).parMap(concurrency = 4) { idx ->
             val f = autoCloseable { getImageSource(idx) }
             closeable { f.source.openFileDescriptor("r") }.fd to perFilename(idx, f.type)
         }.run { plus(comicInfo.fd to COMIC_INFO_FILE) }.unzip()
