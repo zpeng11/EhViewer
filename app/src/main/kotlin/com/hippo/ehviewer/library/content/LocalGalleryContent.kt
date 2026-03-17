@@ -146,7 +146,7 @@ class LocalGalleryContent(
     }
 
     suspend fun getImageSourceForReader(index: Int): PathSource = getImageSourceWithCifsStaging(index) { source ->
-        source.source.isCifsDocumentPath()
+        !source.source.isPhysicalPath
     }
 
     suspend fun getImageSourceForPreview(index: Int): PathSource {
