@@ -7,8 +7,9 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.unit.IntRect
-import arrow.fx.coroutines.parMap
 import coil3.BitmapImage
 import coil3.DrawableImage
 import com.ehviewer.core.database.model.DownloadInfo
@@ -18,6 +19,8 @@ import com.ehviewer.core.files.toUri
 import com.ehviewer.core.i18n.R
 import com.ehviewer.core.model.GalleryPreview
 import com.ehviewer.core.model.V1GalleryPreview
+import com.ehviewer.core.util.logcat
+import com.ehviewer.core.util.withUIContext
 import com.hippo.ehviewer.download.DownloadManager
 import com.hippo.ehviewer.download.archiveFile
 import com.hippo.ehviewer.gallery.PageLoader
@@ -30,6 +33,10 @@ import com.hippo.ehviewer.library.content.LocalGalleryContent
 import com.hippo.ehviewer.library.reader.useLocalGalleryPageLoader
 import com.hippo.ehviewer.util.AppConfig
 import com.hippo.ehviewer.util.ensureDirectory
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -61,6 +68,14 @@ private val localDetailPreviewCacheDir: Path
 private val Path.isPhysicalPath get() = toString().startsWith('/')
 
 private fun buildLocalDetailPreviewPath(gid: Long, index: Int) = localDetailPreviewCacheDir / "preview-$gid-$index.$LOCAL_DETAIL_PREVIEW_EXTENSION"
+
+private fun buildPendingLocalDetailPreviewUrl(gid: Long, index: Int) = "local-preview-pending://$gid/$index"
+
+private fun findLocalDetailPreviewUrl(gid: Long, index: Int) = buildLocalDetailPreviewPath(gid, index)
+    .takeIf { it.isFile }
+    ?.toUri()
+    ?.toString()
+    ?: buildPendingLocalDetailPreviewUrl(gid, index)
 
 private data class PreviewTargetSize(
     val width: Int,
@@ -272,14 +287,14 @@ private sealed interface LocalDetailPreviewBackend {
 
 private class LocalContentPreviewBackend(
     private val content: LocalGalleryContent,
+    private val session: LocalDetailPreviewSession,
     override val total: Int,
 ) : LocalDetailPreviewBackend {
-    override suspend fun loadPreviews(gid: Long, range: IntRange): List<GalleryPreview> = range.toList().parMap(
-        concurrency = LOCAL_DETAIL_PREVIEW_MAX_CONCURRENCY,
-    ) { index ->
-        createLocalDetailPreviewItem(gid, index) {
+    override suspend fun loadPreviews(gid: Long, range: IntRange): List<GalleryPreview> = range.map { index ->
+        session.scheduleLocalPreviewFill(index) {
             content.getImageSourceForPreview(index)
         }
+        createCachedLocalDetailPreviewItem(gid, index)
     }
 }
 
@@ -289,14 +304,23 @@ private class ArchivePreviewBackend(
 ) : LocalDetailPreviewBackend {
     override suspend fun loadPreviews(gid: Long, range: IntRange): List<GalleryPreview> = useLocalPreviewPageLoader(info) { loader ->
         range.map { index ->
-            createLocalDetailPreviewItem(gid, index) {
+            createBlockingLocalDetailPreviewItem(gid, index) {
                 loader.openSource(index)
             }
         }
     }
 }
 
-private suspend fun createLocalDetailPreviewItem(
+private fun createCachedLocalDetailPreviewItem(
+    gid: Long,
+    index: Int,
+) = V1GalleryPreview(
+    url = findLocalDetailPreviewUrl(gid, index),
+    position = index,
+    pToken = "",
+)
+
+private suspend fun createBlockingLocalDetailPreviewItem(
     gid: Long,
     index: Int,
     openSource: suspend () -> ImageSource,
@@ -308,11 +332,35 @@ private suspend fun createLocalDetailPreviewItem(
 
 class LocalDetailPreviewSession(
     private val gid: Long,
+    private val scope: CoroutineScope,
 ) {
     private val initMutex = Mutex()
+    private val localPreviewFillSemaphore = Semaphore(1)
+    private val pendingLocalPreviewsLock = Any()
+    private val pendingLocalPreviews = mutableSetOf<DetailPreviewKey>()
+    private val localPreviewUrlStatesLock = Any()
+    private val localPreviewUrlStates = mutableMapOf<Int, androidx.compose.runtime.MutableState<String>>()
 
     @Volatile
     private var backend: LocalDetailPreviewBackend? = null
+
+    private fun updatePreviewUrlIfObserved(index: Int, url: String) {
+        synchronized(localPreviewUrlStatesLock) {
+            localPreviewUrlStates[index]
+        }?.let { state ->
+            if (state.value != url) {
+                state.value = url
+            }
+        }
+    }
+
+    fun previewUrlState(index: Int): State<String> {
+        return synchronized(localPreviewUrlStatesLock) {
+            localPreviewUrlStates.getOrPut(index) {
+                mutableStateOf(findLocalDetailPreviewUrl(gid, index))
+            }
+        }
+    }
 
     suspend fun loadPage(start: Int, endInclusive: Int): Pair<List<GalleryPreview>, Int> {
         val backend = getOrCreateBackend()
@@ -328,6 +376,44 @@ class LocalDetailPreviewSession(
         backend?.let { return it }
         return initMutex.withLock {
             backend ?: buildBackend().also { backend = it }
+        }
+    }
+
+    fun scheduleLocalPreviewFill(index: Int, openSource: suspend () -> ImageSource) {
+        val key = DetailPreviewKey(gid, index)
+        val target = buildLocalDetailPreviewPath(gid, index)
+        if (target.isFile) {
+            updatePreviewUrlIfObserved(index, target.toUri().toString())
+            return
+        }
+        val shouldLaunch = synchronized(pendingLocalPreviewsLock) {
+            pendingLocalPreviews.add(key)
+        }
+        if (!shouldLaunch) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val resolvedUrl = localPreviewFillSemaphore.withPermit {
+                    if (!target.isFile) {
+                        ensureLocalDetailPreviewFile(gid, index, openSource)
+                            ?.toUri()
+                            ?.toString()
+                    } else {
+                        target.toUri().toString()
+                    }
+                }
+                resolvedUrl?.let { url ->
+                    withUIContext {
+                        updatePreviewUrlIfObserved(index, url)
+                    }
+                }
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                logcat(t)
+            } finally {
+                synchronized(pendingLocalPreviewsLock) {
+                    pendingLocalPreviews.remove(key)
+                }
+            }
         }
     }
 
@@ -353,7 +439,7 @@ class LocalDetailPreviewSession(
             check(total > 0) {
                 appCtx.getString(R.string.local_content_unavailable)
             }
-            LocalContentPreviewBackend(content, total)
+            LocalContentPreviewBackend(content, this, total)
         }
     }
 }

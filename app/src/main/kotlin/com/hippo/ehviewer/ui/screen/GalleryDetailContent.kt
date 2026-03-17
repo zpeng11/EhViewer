@@ -70,6 +70,7 @@ import com.ehviewer.core.model.GalleryDetail
 import com.ehviewer.core.model.GalleryInfo
 import com.ehviewer.core.model.GalleryInfo.Companion.NOT_FAVORITED
 import com.ehviewer.core.model.GalleryPreview
+import com.ehviewer.core.model.V1GalleryPreview
 import com.ehviewer.core.model.GalleryTagGroup
 import com.ehviewer.core.model.V2GalleryPreview
 import com.ehviewer.core.ui.component.CrystalCard
@@ -313,8 +314,13 @@ fun GalleryDetailContent(
         }
     }
 
+    val localPreviewItems = if (canReadLocally) {
+        galleryInfo.collectLocalPreviewItems()
+    } else {
+        null
+    }
     val previews = when {
-        canReadLocally -> galleryInfo.collectLocalPreviewItems()
+        localPreviewItems != null -> localPreviewItems.items
         galleryDetail != null -> galleryDetail.collectPreviewItems()
         else -> null
     }
@@ -379,6 +385,7 @@ fun GalleryDetailContent(
                     data = previews,
                     isV2Thumb = galleryDetail?.previewList?.firstOrNull() is V2GalleryPreview,
                     enablePrefetch = !canReadLocally,
+                    localPreviewSession = localPreviewItems?.session,
                 ) {
                     if (canReadLocally) {
                         navToReader(galleryInfo.findBaseInfo(), it)
@@ -454,6 +461,7 @@ fun GalleryDetailContent(
                     data = previews,
                     isV2Thumb = galleryDetail?.previewList?.firstOrNull() is V2GalleryPreview,
                     enablePrefetch = !canReadLocally,
+                    localPreviewSession = localPreviewItems?.session,
                 ) {
                     if (canReadLocally) {
                         navToReader(galleryInfo.findBaseInfo(), it)
@@ -692,51 +700,82 @@ private fun GalleryDetail.collectPreviewItems() = rememberInVM(previewList) {
 }.collectAsLazyPagingItems()
 
 @Composable
-private fun GalleryInfo.collectLocalPreviewItems() = rememberInVM(gid) {
-    val gid = gid
-    val previewSession = LocalDetailPreviewSession(gid)
-    Pager(
-        PagingConfig(
-            pageSize = 4,
-            prefetchDistance = 4,
-            initialLoadSize = 2,
-        ),
-    ) {
-        object : PagingSource<Int, GalleryPreview>() {
-            private var pageCount = pages
+private fun GalleryInfo.collectLocalPreviewItems(): LocalPreviewItems {
+    val previewSession = rememberInVM(gid to "local-preview-session") {
+        LocalDetailPreviewSession(gid, viewModelScope)
+    }
+    val previewFlow = rememberInVM(gid to "local-preview-flow") {
+        val gid = gid
+        Pager(
+            PagingConfig(
+                pageSize = 4,
+                prefetchDistance = 4,
+                initialLoadSize = 2,
+            ),
+        ) {
+            object : PagingSource<Int, GalleryPreview>() {
+                private var pageCount = pages
 
-            override fun getRefreshKey(state: PagingState<Int, GalleryPreview>) = state.getClippedRefreshKey()
+                override fun getRefreshKey(state: PagingState<Int, GalleryPreview>) = state.getClippedRefreshKey()
 
-            override suspend fun load(params: LoadParams<Int>): LoadResult<Int, GalleryPreview> = withIOContext {
-                val itemCount = pageCount.takeIf { it > 0 } ?: Int.MAX_VALUE
-                val key = params.key ?: 0
-                val up = getOffset(params, key, itemCount)
-                val end = up + getLimit(params, key) - 1
-                runSuspendCatching {
-                    loadLocalDetailPreviewPage(previewSession, up, end)
-                }.foldToLoadResult { (items, total) ->
-                    pageCount = total
-                    val prevK = if (up <= 0 || items.isEmpty()) null else up
-                    val nextEnd = up + items.size - 1
-                    val nextK = if (nextEnd >= total - 1) null else nextEnd + 1
-                    LoadResult.Page(
-                        data = items,
-                        prevKey = prevK,
-                        nextKey = nextK,
-                        itemsBefore = up,
-                        itemsAfter = (total - nextEnd - 1).coerceAtLeast(0),
-                    )
+                override suspend fun load(params: LoadParams<Int>): LoadResult<Int, GalleryPreview> = withIOContext {
+                    val itemCount = pageCount.takeIf { it > 0 } ?: Int.MAX_VALUE
+                    val key = params.key ?: 0
+                    val up = getOffset(params, key, itemCount)
+                    val end = up + getLimit(params, key) - 1
+                    runSuspendCatching {
+                        loadLocalDetailPreviewPage(previewSession, up, end)
+                    }.foldToLoadResult { (items, total) ->
+                        pageCount = total
+                        val prevK = if (up <= 0 || items.isEmpty()) null else up
+                        val nextEnd = up + items.size - 1
+                        val nextK = if (nextEnd >= total - 1) null else nextEnd + 1
+                        LoadResult.Page(
+                            data = items,
+                            prevKey = prevK,
+                            nextKey = nextK,
+                            itemsBefore = up,
+                            itemsAfter = (total - nextEnd - 1).coerceAtLeast(0),
+                        )
+                    }
                 }
             }
+        }.flow.cachedIn(viewModelScope)
+    }
+    return LocalPreviewItems(
+        session = previewSession,
+        items = previewFlow.collectAsLazyPagingItems(),
+    )
+}
+
+private data class LocalPreviewItems(
+    val session: LocalDetailPreviewSession,
+    val items: LazyPagingItems<GalleryPreview>,
+)
+
+@Composable
+private fun LocalDetailPreviewSession.resolvePreview(preview: GalleryPreview?): GalleryPreview? {
+    if (preview == null) return null
+    if (!preview.url.startsWith("local-preview-pending://")) return preview
+    val resolvedUrl by previewUrlState(preview.position)
+    return remember(preview, resolvedUrl) {
+        if (resolvedUrl == preview.url) {
+            preview
+        } else {
+            when (preview) {
+                is V1GalleryPreview -> preview.copy(url = resolvedUrl)
+                is V2GalleryPreview -> preview.copy(url = resolvedUrl)
+            }
         }
-    }.flow.cachedIn(viewModelScope)
-}.collectAsLazyPagingItems()
+    }
+}
 
 context(_: Context)
 private fun LazyGridScope.galleryPreview(
     data: LazyPagingItems<GalleryPreview>,
     isV2Thumb: Boolean,
     enablePrefetch: Boolean,
+    localPreviewSession: LocalDetailPreviewSession? = null,
     onClick: (Int) -> Unit,
 ) {
     items(
@@ -745,7 +784,8 @@ private fun LazyGridScope.galleryPreview(
         contentType = { "preview" },
     ) { index ->
         val item = data[index]
-        EhPreviewItem(item, placeholderIndex = index) { onClick(index) }
+        val resolvedItem = localPreviewSession?.resolvePreview(item) ?: item
+        EhPreviewItem(resolvedItem, placeholderIndex = index) { onClick(index) }
         if (enablePrefetch) {
             PrefetchAround(data, index, if (isV2Thumb) 20 else 6) { imageRequest(it) }
         }
